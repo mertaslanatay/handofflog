@@ -1,0 +1,113 @@
+// Handofflog Phase 2 — database schema (I-04).
+// Target: hosted PostgreSQL (Neon/Supabase) on Vercel (DEC-028).
+// Mirrors plugin/src/backend/domain.ts. Secrets (DATABASE_URL) come from env.
+// Run: `prisma migrate dev` at deploy time (not in the plugin dev environment).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection for the app (Vercel/Neon: DATABASE_URL).
+  url       = env("DATABASE_URL")
+  // Direct connection for migrations (Vercel/Neon: DATABASE_URL_UNPOOLED).
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id          String            @id @default(cuid())
+  email       String            @unique
+  displayName String?
+  memberships WorkspaceMember[]
+  releases    ReleaseRecord[]   @relation("PublishedBy")
+  acks        Acknowledgement[]
+  createdAt   DateTime          @default(now())
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String
+  ownerId   String
+  members   WorkspaceMember[]
+  projects  Project[]
+  releases  ReleaseRecord[]
+  acks      Acknowledgement[]
+  createdAt DateTime          @default(now())
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        Role      @default(MEMBER)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([workspaceId])
+}
+
+model Project {
+  id           String          @id @default(cuid())
+  workspaceId  String
+  name         String
+  figmaFileKey String?
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  releases     ReleaseRecord[]
+  createdAt    DateTime        @default(now())
+
+  @@index([workspaceId])
+}
+
+model ReleaseRecord {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  projectId     String
+  publishedById String
+  // Normalized Release payload (shared/release.ts). No raw document binaries.
+  release       Json
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  publishedBy   User              @relation("PublishedBy", fields: [publishedById], references: [id])
+  acks          Acknowledgement[]
+  createdAt     DateTime          @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model Acknowledgement {
+  id            String        @id @default(cuid())
+  workspaceId   String
+  releaseId     String
+  userId        String
+  status        AckStatus     @default(REVIEWED)
+  acknowledgedAt DateTime     @default(now())
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  release       ReleaseRecord @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([releaseId, userId])
+  @@index([workspaceId])
+}
+
+model PluginToken {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  userId      String
+  // SHA-256 hex of the raw token; raw token is shown once and never stored.
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  @@index([workspaceId])
+}
+
+enum Role {
+  OWNER
+  MEMBER
+}
+
+enum AckStatus {
+  REVIEWED
+}

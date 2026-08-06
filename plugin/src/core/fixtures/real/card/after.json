@@ -1,0 +1,32 @@
+{
+  "id": "k:1",
+  "name": "ProductCard",
+  "type": "FRAME",
+  "absoluteBoundingBox": { "x": 0, "y": 0, "width": 300, "height": 196 },
+  "layoutMode": "VERTICAL",
+  "itemSpacing": 8,
+  "paddingLeft": 24,
+  "paddingRight": 24,
+  "paddingTop": 24,
+  "paddingBottom": 24,
+  "cornerRadius": 12,
+  "fills": [{ "type": "SOLID", "color": { "r": 0.96, "g": 0.96, "b": 0.97 } }],
+  "children": [
+    {
+      "id": "k:2",
+      "name": "Title",
+      "type": "TEXT",
+      "absoluteBoundingBox": { "x": 24, "y": 24, "width": 252, "height": 28 },
+      "characters": "Wireless Headphones",
+      "style": { "fontFamily": "Inter", "fontStyle": "Semi Bold", "fontSize": 20, "lineHeightPx": 28, "lineHeightUnit": "PIXELS", "letterSpacing": 0 }
+    },
+    {
+      "id": "k:3",
+      "name": "Price",
+      "type": "TEXT",
+      "absoluteBoundingBox": { "x": 24, "y": 60, "width": 252, "height": 20 },
+      "characters": "$129",
+      "style": { "fontFamily": "Inter", "fontStyle": "Regular", "fontSize": 14, "lineHeightPx": 20, "lineHeightUnit": "PIXELS", "letterSpacing": 0 }
+    }
+  ]
+}

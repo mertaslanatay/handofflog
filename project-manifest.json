@@ -1,0 +1,19 @@
+{
+  "project": "Handofflog",
+  "version": "0.1.0",
+  "product_type": [
+    "Figma Plugin",
+    "Private Team Web App"
+  ],
+  "primary_loop": [
+    "Select",
+    "Snapshot",
+    "Change",
+    "Scan",
+    "Review",
+    "Publish",
+    "Acknowledge"
+  ],
+  "current_phase": "Phase 01 Technical Prototype",
+  "entrypoint": "00_START_HERE/COWORK_MASTER_PROMPT.md"
+}

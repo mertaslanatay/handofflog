@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+apps/web/.next/
+
+# Secrets / env
+.env
+.env*.local
+
+# Prisma generated client
+apps/web/node_modules/.prisma/
+
+# Coverage
+coverage/
+
+# OS / editor
+.DS_Store
+*.log
+.vercel

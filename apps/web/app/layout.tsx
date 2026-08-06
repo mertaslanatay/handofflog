@@ -1,0 +1,16 @@
+import type { ReactNode } from "react";
+
+export const metadata = {
+  title: "Handofflog",
+  description: "Design change releases for your team.",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "40px auto", padding: "0 16px", color: "#1a1a1a" }}>
+        {children}
+      </body>
+    </html>
+  );
+}

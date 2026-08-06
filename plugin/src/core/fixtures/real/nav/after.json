@@ -1,0 +1,28 @@
+{
+  "id": "n:1",
+  "name": "BottomNav",
+  "type": "FRAME",
+  "absoluteBoundingBox": { "x": 0, "y": 0, "width": 375, "height": 64 },
+  "layoutMode": "HORIZONTAL",
+  "itemSpacing": 0,
+  "paddingLeft": 0,
+  "paddingRight": 0,
+  "paddingTop": 8,
+  "paddingBottom": 8,
+  "children": [
+    {
+      "id": "n:2",
+      "name": "Home",
+      "type": "INSTANCE",
+      "absoluteBoundingBox": { "x": 0, "y": 8, "width": 187, "height": 48 },
+      "componentProperties": { "State": { "value": "Default", "type": "VARIANT" } }
+    },
+    {
+      "id": "n:4",
+      "name": "Profile",
+      "type": "INSTANCE",
+      "absoluteBoundingBox": { "x": 187, "y": 8, "width": 188, "height": 48 },
+      "componentProperties": { "State": { "value": "Active", "type": "VARIANT" } }
+    }
+  ]
+}

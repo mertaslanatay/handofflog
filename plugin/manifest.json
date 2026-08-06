@@ -1,0 +1,15 @@
+{
+  "name": "Handofflog",
+  "id": "handofflog-technical-prototype",
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "networkAccess": {
+    "allowedDomains": ["https://handofflog.vercel.app"],
+    "reasoning": "Phase 2: publishing a release sends the selected changeset to the team backend after explicit user action. Baseline/scan stay local."
+  },
+  "capabilities": [],
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page"
+}

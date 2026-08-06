@@ -1,0 +1,58 @@
+{
+  "id": "10:2",
+  "name": "Checkout",
+  "type": "FRAME",
+  "absoluteBoundingBox": { "x": 0, "y": 0, "width": 375, "height": 600 },
+  "layoutMode": "VERTICAL",
+  "itemSpacing": 16,
+  "paddingLeft": 24,
+  "paddingRight": 24,
+  "paddingTop": 24,
+  "paddingBottom": 24,
+  "fills": [{ "type": "SOLID", "opacity": 1, "color": { "r": 1, "g": 1, "b": 1, "a": 1 } }],
+  "children": [
+    {
+      "id": "10:3",
+      "name": "Label",
+      "type": "TEXT",
+      "absoluteBoundingBox": { "x": 24, "y": 24, "width": 327, "height": 24 },
+      "characters": "Continue",
+      "style": {
+        "fontFamily": "Inter",
+        "fontStyle": "Semi Bold",
+        "fontWeight": 600,
+        "fontSize": 16,
+        "lineHeightPx": 24,
+        "lineHeightUnit": "PIXELS",
+        "letterSpacing": 0
+      },
+      "fills": [{ "type": "SOLID", "color": { "r": 0.1, "g": 0.1, "b": 0.1, "a": 1 } }]
+    },
+    {
+      "id": "10:4",
+      "name": "Button",
+      "type": "FRAME",
+      "absoluteBoundingBox": { "x": 24, "y": 64, "width": 320, "height": 48 },
+      "cornerRadius": 8,
+      "fills": [{ "type": "SOLID", "color": { "r": 0.05, "g": 0.6, "b": 1, "a": 1 } }],
+      "children": [
+        {
+          "id": "10:5",
+          "name": "Button Label",
+          "type": "TEXT",
+          "absoluteBoundingBox": { "x": 140, "y": 78, "width": 88, "height": 20 },
+          "characters": "Pay",
+          "style": {
+            "fontFamily": "Inter",
+            "fontStyle": "Medium",
+            "fontWeight": 500,
+            "fontSize": 14,
+            "lineHeightPercentFontSize": 140,
+            "lineHeightUnit": "FONT_SIZE_%",
+            "letterSpacing": 0.2
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "handofflog-figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Handofflog — snapshot-based change tracking for Figma handoffs. Phase 01 technical prototype.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "node build.mjs",
+    "build:watch": "node build.mjs --watch",
+    "verify": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
