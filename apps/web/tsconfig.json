@@ -16,6 +16,7 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
+      "zod": ["./node_modules/zod"],
       "@core/*": ["../../plugin/src/core/*"],
       "@shared/*": ["../../plugin/src/shared/*"],
       "@backend/*": ["../../plugin/src/backend/*"],
