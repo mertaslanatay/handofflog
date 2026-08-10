@@ -112,6 +112,19 @@ export async function mintPluginToken(
   return token;
 }
 
+/** Revoke all plugin connection tokens for a workspace (security). */
+export async function revokePluginTokens(
+  repo: Repository,
+  ctx: AuthContext,
+  workspaceId: string,
+  now: string
+): Promise<void> {
+  const members = await repo.getMembers(workspaceId);
+  const role = assertWorkspaceAccess(members, ctx.userId, workspaceId);
+  assertRole(role, canPublish);
+  await repo.revokeTokensForWorkspace(workspaceId, now);
+}
+
 /** Delete a workspace and all its data (I-15). Owner only. */
 export async function deleteWorkspace(
   repo: Repository,

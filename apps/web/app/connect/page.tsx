@@ -45,6 +45,35 @@ export default function ConnectPage() {
           </code>
         </div>
       ) : null}
+
+      <RevokeTokens />
     </main>
+  );
+}
+
+function RevokeTokens() {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function revoke() {
+    if (!confirm("Tüm mevcut bağlantı token'ları geçersiz kılınacak. Devam?")) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/tokens/revoke", { method: "POST" });
+      if (res.ok) setDone(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #eee" }}>
+      <p style={{ color: "#666", fontSize: 13 }}>
+        Bir token sızdıysa mevcut tüm token&apos;ları iptal edip yenisini oluşturabilirsin.
+      </p>
+      <button onClick={revoke} disabled={busy || done} style={{ border: "1px solid #b91c1c", color: "#b91c1c", background: "transparent", borderRadius: 6, padding: "6px 12px" }}>
+        {done ? "Token'lar iptal edildi ✓" : busy ? "İptal ediliyor…" : "Mevcut token'ları iptal et"}
+      </button>
+    </div>
   );
 }

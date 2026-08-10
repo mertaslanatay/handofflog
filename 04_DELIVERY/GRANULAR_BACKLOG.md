@@ -139,7 +139,9 @@ Her görev şu dört kuralı sağlar:
 
 ---
 
-## EPIC I — Faz 2: Private Team App  *(ön koşul: SECURITY_AND_PRIVACY uyum listesi ✅)*
+## EPIC I — Faz 2: Private Team App  *(CANLI — `handofflog-lime.vercel.app`, DEC-030)*
+
+> **Durum:** Uçtan uca çalışıyor. Giriş (Figma OAuth), workspace, tenant izolasyonu, plugin→backend publish, timeline, detay, acknowledge + oran, Slack (opsiyonel), workspace silme, token iptal. Backend 134 testli; web deploy edilmiş. Kalan: zamanlı retention job, release compare view, monorepo split (TD-009/TD-013).
 
 | ID | Görev | Test | Commit | Bağ. | Süre |
 | --- | --- | --- | --- | --- | --- |

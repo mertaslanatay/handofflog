@@ -16,6 +16,8 @@ import type {
 export interface Repository {
   savePluginToken(token: PluginToken): Promise<void>;
   findPluginTokenByHash(tokenHash: string): Promise<PluginToken | undefined>;
+  /** Revoke all active plugin tokens for a workspace (e.g. after a leak). */
+  revokeTokensForWorkspace(workspaceId: string, now: string): Promise<void>;
   /** Delete a workspace and all of its data (I-15 right-to-deletion). */
   deleteWorkspace(workspaceId: string): Promise<void>;
   addWorkspace(workspace: Workspace): Promise<void>;
@@ -44,6 +46,12 @@ export class InMemoryRepository implements Repository {
   }
   async findPluginTokenByHash(tokenHash: string): Promise<PluginToken | undefined> {
     return this.tokens.find((t) => t.tokenHash === tokenHash);
+  }
+
+  async revokeTokensForWorkspace(workspaceId: string, now: string): Promise<void> {
+    this.tokens = this.tokens.map((t) =>
+      t.workspaceId === workspaceId && !t.revokedAt ? { ...t, revokedAt: now } : t
+    );
   }
 
   async deleteWorkspace(workspaceId: string): Promise<void> {

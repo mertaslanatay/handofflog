@@ -4,6 +4,7 @@ import {
   publishRelease,
   publishReleaseWithToken,
   mintPluginToken,
+  revokePluginTokens,
   listReleases,
   acknowledgeRelease,
   acknowledgementRate,
@@ -103,6 +104,16 @@ describe("plugin token publish (I-08 wiring)", () => {
     const repo = await seed();
     await expect(
       publishReleaseWithToken(repo, "bogus", { release: makeRelease(), id: "x", now: "t" })
+    ).rejects.toBeInstanceOf(AuthzError);
+  });
+
+  it("revoked tokens can no longer publish", async () => {
+    const repo = await seed();
+    const raw = generatePluginToken();
+    await mintPluginToken(repo, { userId: "dev" }, { workspaceId: "w1", projectId: "p1", id: "tok1", rawToken: raw, now: "t" });
+    await revokePluginTokens(repo, { userId: "dev" }, "w1", "t2");
+    await expect(
+      publishReleaseWithToken(repo, raw, { release: makeRelease(), id: "rr1", now: "t3" })
     ).rejects.toBeInstanceOf(AuthzError);
   });
 });
