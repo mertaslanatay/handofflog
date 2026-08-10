@@ -6,7 +6,7 @@
   "main": "dist/code.js",
   "ui": "dist/ui.html",
   "networkAccess": {
-    "allowedDomains": ["https://handofflog.vercel.app"],
+    "allowedDomains": ["https://handofflog-lime.vercel.app"],
     "reasoning": "Phase 2: publishing a release sends the selected changeset to the team backend after explicit user action. Baseline/scan stay local."
   },
   "capabilities": [],

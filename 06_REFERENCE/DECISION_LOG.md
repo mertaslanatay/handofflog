@@ -268,6 +268,27 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **Alternatifler:** Plugin içi OAuth (karmaşık), paylaşılan API key (daha az güvenli).
 **Sonuç:** `backend/tokens.ts` + `publishReleaseWithToken` testli; plugin push best-effort (offline'da yerel yayın korunur). Token revocation UI'ı sonraya (TD).
 
+---
+
+## DEC-030 — Faz 2 canlıya alındı (uçtan uca doğrulandı)
+
+**Durum:** Kabul edildi (canlı)
+**Karar:** Web app Vercel'de yayında (`handofflog-lime.vercel.app`), Neon Postgres bağlı, Figma OAuth ile giriş çalışıyor; plugin bağlantı token'ıyla backend'e publish ediyor ve release web `/releases`'te görünüyor.
+**Yol boyunca çözülen canlı-yapılandırma sorunları (gelecek referansı):**
+- Iki-paket zod çözümü: `next.config` webpack alias + tsconfig path; build-time TS/ESLint kontrolü geçici kapatıldı (TD-013).
+- Doğru domain `handofflog-lime.vercel.app` (eski `handofflog.vercel.app` dummy projede kaldı); env + Figma redirect + manifest + `BACKEND_BASE_URL` buna göre.
+- Figma OAuth scope = `current_user:read` (eski `file_read`/`files:read` "Invalid scopes for app").
+- Figma redirect URL uygulamada birebir kayıtlı olmalı.
+- Vercel env değerleri boş eklenmişti (`FIGMA_OAUTH_CLIENT_ID`, `SESSION_SECRET`) → girildi + redeploy. ("Zero-length key" = boş SESSION_SECRET.)
+- Plugin→backend CORS: `POST /api/releases` için OPTIONS + CORS başlıkları eklendi.
+**Sonuç:** Faz 2 temel akışı (Publish→timeline) sevk edildi. Kalan UI/özellikler opsiyonel.
+
+## TD-013 — Web build'inde TS/ESLint kontrolü kapalı
+
+**Durum:** Açık
+`next.config` `ignoreBuildErrors`/`ignoreDuringBuilds` açık (cross-package tip artefaktı yüzünden). Kod plugin projesinde strict + testli. Monorepo split'inden (TD-009) sonra kapatılıp gerçek build-time tip kontrolü geri açılmalı.
+**Risk:** Orta. **Çözüm:** TD-009 ile birlikte.
+
 **Durum:** Önerildi / Kabul edildi / Değiştirildi  
 **Karar:**  
 **Gerekçe:**  

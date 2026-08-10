@@ -45,7 +45,7 @@ import type { Release } from "../shared/release";
 let scanCancelled = false;
 
 /** Team backend base URL (must match manifest networkAccess.allowedDomains). */
-const BACKEND_BASE_URL = "https://handofflog.vercel.app";
+const BACKEND_BASE_URL = "https://handofflog-lime.vercel.app";
 
 // --- Session cache (main thread is otherwise stateless between messages) ------
 let lastBaseline: Snapshot | undefined;
