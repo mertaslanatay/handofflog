@@ -3,6 +3,7 @@ import { getSessionUserId } from "@/server/session";
 import { primaryWorkspaceId } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { listReleases } from "@backend/services";
+import { relativeTime } from "@core/relative-time";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,8 @@ export default async function ReleasesPage() {
               <a href={`/releases/${r.id}`} style={{ textDecoration: "none", color: "inherit" }}>
                 <strong>{r.release.name}</strong>{" "}
                 <span style={{ color: "#666" }}>
-                  v{r.release.version} · {r.release.type} · {r.release.impact} · {r.release.changes.length} değişiklik
+                  v{r.release.version} · {r.release.type} · {r.release.impact} · {r.release.changes.length} değişiklik ·{" "}
+                  {relativeTime(r.createdAt, Date.now())}
                 </span>
               </a>
             </li>

@@ -19,6 +19,8 @@ export interface NodeSpec {
   name: string;
   type: string;
   componentKey?: string;
+  pageName?: string;
+  screenName?: string;
   properties?: NodeProperties;
   children?: NodeSpec[];
 }
@@ -43,6 +45,8 @@ export function buildSnapshotFromSpec(
     };
     if (parentTrackingId !== undefined) node.parentTrackingId = parentTrackingId;
     if (spec.componentKey !== undefined) node.componentKey = spec.componentKey;
+    if (spec.pageName !== undefined) node.pageName = spec.pageName;
+    if (spec.screenName !== undefined) node.screenName = spec.screenName;
     nodes[spec.trackingId] = node;
     return spec.trackingId;
   };

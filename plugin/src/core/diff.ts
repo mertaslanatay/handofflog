@@ -131,7 +131,7 @@ function toModifiedChange(
   node: NodeSnapshot,
   changes: PropertyChange[]
 ): NodeChange {
-  return {
+  const change: NodeChange = {
     trackingId: node.trackingId,
     nodeId: node.nodeId,
     nodeName: node.name,
@@ -140,6 +140,9 @@ function toModifiedChange(
     propertyChanges: changes,
     impact: impactForNodeChange("modified", changes),
   };
+  if (node.pageName !== undefined) change.pageName = node.pageName;
+  if (node.screenName !== undefined) change.screenName = node.screenName;
+  return change;
 }
 
 /** Whether an x/y position change survives the configured noise mode. */
@@ -160,7 +163,7 @@ function wholeNodeChange(
   node: NodeSnapshot,
   kind: "added" | "removed"
 ): NodeChange {
-  return {
+  const change: NodeChange = {
     trackingId: node.trackingId,
     nodeId: node.nodeId,
     nodeName: node.name,
@@ -169,6 +172,9 @@ function wholeNodeChange(
     propertyChanges: [],
     impact: impactForNodeChange(kind, []),
   };
+  if (node.pageName !== undefined) change.pageName = node.pageName;
+  if (node.screenName !== undefined) change.screenName = node.screenName;
+  return change;
 }
 
 function compareName(b: NodeSnapshot, c: NodeSnapshot): PropertyChange[] {

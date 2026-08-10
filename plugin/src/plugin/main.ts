@@ -37,7 +37,9 @@ import {
   countNodes,
   CancelledError,
   SUPPORTED_SCOPE_TYPES,
+  type ScopeRoot,
 } from "./snapshot";
+import type { ScopeMode } from "../shared/messages";
 import { loadBaseline, saveBaseline, StorageError } from "./storage";
 import { createReleaseApiClient } from "../backend/api-client";
 import type { Release } from "../shared/release";
@@ -51,6 +53,7 @@ const BACKEND_BASE_URL = "https://handofflog-lime.vercel.app";
 let lastBaseline: Snapshot | undefined;
 let lastCurrent: Snapshot | undefined;
 let lastChangeSet: ChangeSet | undefined;
+let lastScopeId: string | undefined;
 let telemetryEnabled = false;
 let backendToken: string | undefined;
 
@@ -77,11 +80,12 @@ function postError(error: PluginError): void {
 
 function postInit(selection: SelectionSummary, baseline?: BaselineInfo): void {
   const backendConnected = backendToken !== undefined && backendToken.length > 0;
+  const fileName = figma.root.name;
   post({
     type: "INIT",
     payload: baseline
-      ? { selection, baseline, telemetryEnabled, backendConnected }
-      : { selection, telemetryEnabled, backendConnected },
+      ? { selection, baseline, telemetryEnabled, backendConnected, fileName }
+      : { selection, telemetryEnabled, backendConnected, fileName },
   });
 }
 
@@ -145,11 +149,24 @@ function selectionSummary(): SelectionSummary {
   };
 }
 
-function scopeIdFor(node: SceneNode): string {
-  // The root's stable tracking ID is also the scope key, so the same frame maps
-  // to the same baseline across sessions.
+function scopeIdFor(node: ScopeRoot): string {
+  // The root's stable tracking ID is also the scope key, so the same frame/page
+  // maps to the same baseline across sessions.
   const existing = node.getPluginData("handofflog:tid");
   return existing.length > 0 ? existing : `tid_${node.id.replace(/[^a-zA-Z0-9]/g, "_")}`;
+}
+
+type ScopeResolution =
+  | { ok: true; root: ScopeRoot }
+  | { ok: false; error: PluginError };
+
+/** Resolve the scope root for the requested mode (selection frame vs whole page). */
+function resolveScope(mode: ScopeMode): ScopeResolution {
+  if (mode === "page") {
+    return { ok: true, root: figma.currentPage };
+  }
+  const result = resolveScopeNode();
+  return result.ok ? { ok: true, root: result.node } : { ok: false, error: result.error };
 }
 
 function genId(prefix: string): string {
@@ -169,7 +186,7 @@ function baselineInfo(snapshot: Snapshot): BaselineInfo {
 // --- Actions ----------------------------------------------------------------
 
 /** Gate oversized scopes and return the node count for progress (B-01/B-02). */
-function checkScope(node: SceneNode): { error?: PluginError; total: number } {
+function checkScope(node: ScopeRoot): { error?: PluginError; total: number } {
   const total = countNodes(node);
   const verdict = evaluateScopeSize(total);
   if (verdict === "too-large") {
@@ -199,6 +216,7 @@ async function sendInit(): Promise<void> {
     return;
   }
   const scopeId = scopeIdFor(scope.node);
+  lastScopeId = scopeId;
   try {
     const loaded = await loadBaseline(scopeId);
     if (loaded.status === "found") {
@@ -231,11 +249,12 @@ async function sendInit(): Promise<void> {
   }
 }
 
-async function createBaseline(): Promise<void> {
-  const scope = resolveScopeNode();
+async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
+  const scope = resolveScope(input.scopeMode ?? "selection");
   if (!scope.ok) return postError(scope.error);
 
-  const scopeId = scopeIdFor(scope.node);
+  const scopeId = scopeIdFor(scope.root);
+  lastScopeId = scopeId;
   let isReplacing = false;
   try {
     const existing = await loadBaseline(scopeId);
@@ -244,12 +263,12 @@ async function createBaseline(): Promise<void> {
     // A read failure here shouldn't block creating a fresh baseline.
   }
 
-  const { error: sizeError, total } = checkScope(scope.node);
+  const { error: sizeError, total } = checkScope(scope.root);
   if (sizeError) return postError(sizeError);
 
   const startedAt = Date.now();
   try {
-    const { snapshot, nodeCount } = await buildSnapshot(scope.node, {
+    const { snapshot, nodeCount } = await buildSnapshot(scope.root, {
       scopeId,
       now: new Date().toISOString(),
       snapshotId: genId("snap"),
@@ -284,11 +303,12 @@ async function createBaseline(): Promise<void> {
   }
 }
 
-async function scanChanges(): Promise<void> {
-  const scope = resolveScopeNode();
+async function scanChanges(input: { scopeMode?: ScopeMode }): Promise<void> {
+  const scope = resolveScope(input.scopeMode ?? "selection");
   if (!scope.ok) return postError(scope.error);
 
-  const scopeId = scopeIdFor(scope.node);
+  const scopeId = scopeIdFor(scope.root);
+  lastScopeId = scopeId;
   let baseline: Snapshot;
   try {
     const loaded = await loadBaseline(scopeId);
@@ -318,13 +338,13 @@ async function scanChanges(): Promise<void> {
     return postError(toPluginError(err));
   }
 
-  const { error: sizeError, total } = checkScope(scope.node);
+  const { error: sizeError, total } = checkScope(scope.root);
   if (sizeError) return postError(sizeError);
 
   scanCancelled = false;
   const startedAt = Date.now();
   try {
-    const { snapshot: current } = await buildSnapshot(scope.node, {
+    const { snapshot: current } = await buildSnapshot(scope.root, {
       scopeId,
       now: new Date().toISOString(),
       snapshotId: genId("snap"),
@@ -366,15 +386,13 @@ async function selectNode(nodeId: string): Promise<void> {
 }
 
 async function publishRelease(input: PublishReleaseInput): Promise<void> {
-  const scope = resolveScopeNode();
-  if (!scope.ok) return postError(scope.error);
-  if (lastChangeSet === undefined || lastCurrent === undefined) {
+  if (lastChangeSet === undefined || lastCurrent === undefined || lastScopeId === undefined) {
     return postError(
       pluginError("EXPORT_EMPTY", "Yayınlanacak bir tarama sonucu yok. Önce Scan Changes yap.")
     );
   }
 
-  const scopeId = scopeIdFor(scope.node);
+  const scopeId = lastScopeId; // scope of the last baseline/scan (selection or page)
   const excluded = input.excludedTrackingIds ?? [];
   const meaningful = meaningfulChangeCount(lastChangeSet, excluded);
   const release = buildRelease({
@@ -411,10 +429,15 @@ async function publishRelease(input: PublishReleaseInput): Promise<void> {
 }
 
 async function getReleases(): Promise<void> {
-  const scope = resolveScopeNode();
-  if (!scope.ok) return postError(scope.error);
+  // Prefer the last active scope (works for page mode too); fall back to selection.
+  let scopeId = lastScopeId;
+  if (scopeId === undefined) {
+    const scope = resolveScopeNode();
+    if (!scope.ok) return post({ type: "RELEASES_LOADED", payload: { releases: [] } });
+    scopeId = scopeIdFor(scope.node);
+  }
   try {
-    const releases = await loadReleases(scopeIdFor(scope.node));
+    const releases = await loadReleases(scopeId);
     post({ type: "RELEASES_LOADED", payload: { releases } });
   } catch (err) {
     postError(toPluginError(err));
@@ -522,10 +545,10 @@ figma.ui.onmessage = (raw: unknown) => {
       void sendInit();
       break;
     case "CREATE_BASELINE":
-      void createBaseline();
+      void createBaseline(message.payload);
       break;
     case "SCAN_CHANGES":
-      void scanChanges();
+      void scanChanges(message.payload);
       break;
     case "CANCEL_SCAN":
       scanCancelled = true;

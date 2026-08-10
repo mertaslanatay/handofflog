@@ -49,6 +49,8 @@ export const InitPayloadSchema = z.object({
   telemetryEnabled: z.boolean(),
   /** Whether a backend connection token is stored (plugin↔team app). */
   backendConnected: z.boolean(),
+  /** Active Figma file name (Feature 3). Project name isn't exposed by the API. */
+  fileName: z.string().optional(),
 });
 export type InitPayload = z.infer<typeof InitPayloadSchema>;
 
@@ -86,13 +88,20 @@ export const PluginErrorSchema = z.object({
 });
 export type PluginError = z.infer<typeof PluginErrorSchema>;
 
+export const ScopeModeSchema = z.enum(["selection", "page"]);
+export type ScopeMode = z.infer<typeof ScopeModeSchema>;
+
 export const CreateBaselineInputSchema = z.object({
   /** Optional explicit scope name; defaults to the selected node's name. */
   scopeName: z.string().optional(),
+  /** "selection" (default) = selected frame; "page" = whole current page. */
+  scopeMode: ScopeModeSchema.optional(),
 });
 export type CreateBaselineInput = z.infer<typeof CreateBaselineInputSchema>;
 
-export const ScanInputSchema = z.object({});
+export const ScanInputSchema = z.object({
+  scopeMode: ScopeModeSchema.optional(),
+});
 export type ScanInput = z.infer<typeof ScanInputSchema>;
 
 export const ExportKindSchema = z.enum(["baseline", "current", "changeset"]);

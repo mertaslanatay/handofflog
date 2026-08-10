@@ -29,7 +29,10 @@ export interface BuildSnapshotResult {
   nodeCount: number;
 }
 
-function hasChildren(node: SceneNode): node is SceneNode & ChildrenMixin {
+/** A scope root can be a single frame/section (selection) or a whole page. */
+export type ScopeRoot = SceneNode | PageNode;
+
+function hasChildren(node: ScopeRoot): node is ScopeRoot & ChildrenMixin {
   return "children" in node;
 }
 
@@ -39,9 +42,9 @@ export const MAX_TRAVERSAL_DEPTH = 200;
 export const TRAVERSAL_CHUNK = 200;
 
 /** Cheap pre-count of the subtree size, used to gate oversized scopes (B-02). */
-export function countNodes(root: SceneNode): number {
+export function countNodes(root: ScopeRoot): number {
   let count = 0;
-  const walk = (node: SceneNode): void => {
+  const walk = (node: ScopeRoot): void => {
     count++;
     if (hasChildren(node)) {
       for (const child of node.children) walk(child);
@@ -71,7 +74,7 @@ export class CancelledError extends Error {
  * to plugin data so nodes can be matched on the next scan.
  */
 export async function buildSnapshot(
-  root: SceneNode,
+  root: ScopeRoot,
   args: {
     scopeId: string;
     fileKey?: string;
@@ -85,10 +88,14 @@ export async function buildSnapshot(
   const visitedNodeIds = new Set<string>();
   let processed = 0;
 
+  const isPageRoot = root.type === "PAGE";
+  const pageName = isPageRoot ? root.name : figma.currentPage.name;
+
   const visit = async (
-    node: SceneNode,
+    node: ScopeRoot,
     parentTrackingId: string | undefined,
-    depth: number
+    depth: number,
+    screenName: string | undefined
   ): Promise<string> => {
     if (depth > MAX_TRAVERSAL_DEPTH) {
       throw new Error(`Node tree exceeds max depth ${MAX_TRAVERSAL_DEPTH}.`);
@@ -98,13 +105,18 @@ export async function buildSnapshot(
     }
     visitedNodeIds.add(node.id);
 
-    const trackingId = ensureTrackingId(node);
-    const properties = normalizeNodeProperties(node);
+    // Figma methods below exist on both SceneNode and PageNode; a page root has
+    // no geometry so normalize simply returns an empty property bag.
+    const sceneNode = node as SceneNode;
+    const trackingId = ensureTrackingId(sceneNode);
+    const properties = node.type === "PAGE" ? {} : normalizeNodeProperties(sceneNode);
 
     const childTrackingIds: string[] = [];
     if (hasChildren(node)) {
       for (const child of node.children) {
-        childTrackingIds.push(await visit(child, trackingId, depth + 1));
+        // Direct children of the page root each start a new "screen".
+        const childScreen = isPageRoot && node.id === root.id ? child.name : screenName;
+        childTrackingIds.push(await visit(child, trackingId, depth + 1, childScreen));
         if (++processed % TRAVERSAL_CHUNK === 0) {
           if (args.shouldCancel?.()) throw new CancelledError();
           args.onProgress?.(processed);
@@ -125,11 +137,13 @@ export async function buildSnapshot(
     if (parentTrackingId !== undefined) {
       snapshot.parentTrackingId = parentTrackingId;
     }
+    snapshot.pageName = pageName;
+    if (screenName !== undefined) snapshot.screenName = screenName;
     nodes[trackingId] = snapshot;
     return trackingId;
   };
 
-  await visit(root, undefined, 0);
+  await visit(root, undefined, 0, isPageRoot ? undefined : root.name);
 
   const snapshot: Snapshot = {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,

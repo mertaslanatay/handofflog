@@ -38,6 +38,12 @@ export {
   type TelemetryEmitter,
 } from "./telemetry";
 export { contrastRatio, relativeLuminance, meetsAA, parseHex } from "./contrast";
+export { relativeTime, formatDateTime } from "./relative-time";
+export {
+  summarizeByScreen,
+  screenChangelogLines,
+  type ScreenChangelog,
+} from "./page-report";
 export {
   evaluateScopeSize,
   evaluateSnapshotBytes,

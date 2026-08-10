@@ -12,7 +12,11 @@ import type { Release, ReleaseType } from "../shared/release";
 import { formatValue } from "../core/classify";
 import { filterChanges, sortByImpact, excludeFromChangeSet } from "../core/review";
 import { computeMaxImpact, suggestReleaseType } from "../core/release";
+import { relativeTime } from "../core/relative-time";
+import { summarizeByScreen, screenChangelogLines } from "../core/page-report";
 import { onPluginMessage, sendToPlugin } from "./messaging";
+
+type ScopeMode = "selection" | "page";
 
 const RELEASE_TYPES: ReleaseType[] = ["patch", "minor", "major", "hotfix", "content", "design-system"];
 
@@ -38,6 +42,8 @@ export function App(): JSX.Element {
   const [confirmRebaseline, setConfirmRebaseline] = useState(false);
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [backendConnected, setBackendConnected] = useState(false);
+  const [fileName, setFileName] = useState<string | undefined>();
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("selection");
   const [releases, setReleases] = useState<Release[]>([]);
 
   useEffect(() => {
@@ -48,6 +54,7 @@ export function App(): JSX.Element {
           setBaseline(message.payload.baseline);
           setTelemetryEnabled(message.payload.telemetryEnabled);
           setBackendConnected(message.payload.backendConnected);
+          setFileName(message.payload.fileName);
           sendToPlugin({ type: "GET_RELEASES" });
           break;
         case "RELEASES_LOADED":
@@ -105,8 +112,8 @@ export function App(): JSX.Element {
   const startCreateBaseline = useCallback(() => {
     setBusy("creating");
     setError(undefined);
-    sendToPlugin({ type: "CREATE_BASELINE", payload: {} });
-  }, []);
+    sendToPlugin({ type: "CREATE_BASELINE", payload: { scopeMode } });
+  }, [scopeMode]);
 
   const onCreateBaselineClick = useCallback(() => {
     if (baseline) setConfirmRebaseline(true);
@@ -117,8 +124,8 @@ export function App(): JSX.Element {
     setBusy("scanning");
     setError(undefined);
     setProgress(undefined);
-    sendToPlugin({ type: "SCAN_CHANGES", payload: {} });
-  }, []);
+    sendToPlugin({ type: "SCAN_CHANGES", payload: { scopeMode } });
+  }, [scopeMode]);
 
   const cancelScan = useCallback(() => {
     sendToPlugin({ type: "CANCEL_SCAN" });
@@ -214,6 +221,23 @@ export function App(): JSX.Element {
         <header>
           <h1>Handofflog</h1>
           <p className="hl-muted">Snapshot-based design change tracking</p>
+          {fileName ? (
+            <dl className="hl-overview" aria-label="Project" style={{ marginBottom: 8 }}>
+              <div>
+                <dt>File</dt>
+                <dd>{fileName}</dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="hl-filters" role="group" aria-label="Tarama kapsamı" style={{ marginBottom: 8 }}>
+            <span className="hl-count">Scope:</span>
+            <button className="hl-chip" aria-pressed={scopeMode === "selection"} onClick={() => setScopeMode("selection")}>
+              Selection
+            </button>
+            <button className="hl-chip" aria-pressed={scopeMode === "page"} onClick={() => setScopeMode("page")}>
+              Current Page
+            </button>
+          </div>
           <label className="hl-toggle" htmlFor="telemetry-toggle">
             <input id="telemetry-toggle" type="checkbox" checked={telemetryEnabled} onChange={toggleTelemetry} />
             Anonim kullanım istatistikleri (opt-in)
@@ -397,6 +421,7 @@ function MainContent(props: MainContentProps): JSX.Element {
 
   return (
     <div>
+      <ScreensSummary changeSet={changeSet} />
       <Toolbar {...props} />
       <ChangeGroup title="Added" changes={props.view(changeSet.added)} {...props} />
       <ChangeGroup title="Modified" changes={props.view(changeSet.modified)} {...props} />
@@ -664,7 +689,8 @@ function ReleaseHistory(props: { releases: Release[] }): JSX.Element {
             <span className={`hl-impact hl-impact--${r.impact}`}>{impactLabel(r.impact)}</span>
           </div>
           <p className="hl-muted hl-count">
-            {r.changes.length} değişiklik · {r.status} · {formatDate(r.publishedAt ?? r.createdAt)}
+            {r.changes.length} değişiklik · {r.status} · {formatDate(r.publishedAt ?? r.createdAt)} ·{" "}
+            {relativeTime(r.publishedAt ?? r.createdAt, Date.now())}
           </p>
           {r.description ? <p>{r.description}</p> : null}
         </div>
@@ -675,6 +701,30 @@ function ReleaseHistory(props: { releases: Release[] }): JSX.Element {
 
 function hasChanges(cs: ChangeSet): boolean {
   return cs.added.length + cs.modified.length + cs.removed.length > 0;
+}
+
+function ScreensSummary({ changeSet }: { changeSet: ChangeSet }): JSX.Element | null {
+  const screens = summarizeByScreen(changeSet);
+  if (screens.length === 0) return null;
+  return (
+    <section>
+      <h2>Screens</h2>
+      {screens.map((s) => (
+        <div className="hl-card" key={s.screen}>
+          <div className="hl-change__title">
+            <strong>{s.screen}</strong> <span className="hl-count">{s.count} changes</span>
+          </div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+            {screenChangelogLines(s).map((line, i) => (
+              <li key={i} className="hl-diff">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
 }
 
 function BackendConnect(props: { connected: boolean; onSave: (token: string) => void }): JSX.Element {

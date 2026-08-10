@@ -137,6 +137,10 @@ export const NodeSnapshotSchema = z.object({
    * intentionally excluded from `hash`. Additive & optional — no schema bump.
    */
   componentKey: z.string().optional(),
+  /** Figma page name and top-level screen (frame/section) name — for page-based
+   *  grouping (Feature 4/5). Metadata only; excluded from `hash`. */
+  pageName: z.string().optional(),
+  screenName: z.string().optional(),
   childTrackingIds: z.array(z.string()),
   properties: NodePropertiesSchema,
   hash: z.string(),
@@ -190,6 +194,9 @@ export const NodeChangeSchema = z.object({
   kind: ChangeKindSchema,
   propertyChanges: z.array(PropertyChangeSchema),
   impact: ImpactSchema,
+  /** Page + top-level screen this change belongs to (Feature 4/5 grouping). */
+  pageName: z.string().optional(),
+  screenName: z.string().optional(),
 });
 export type NodeChange = z.infer<typeof NodeChangeSchema>;
 

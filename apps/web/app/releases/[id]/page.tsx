@@ -4,6 +4,7 @@ import { primaryWorkspaceId } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { listReleases, acknowledgementRate } from "@backend/services";
 import { AckPanel } from "@/components/AckPanel";
+import { relativeTime, formatDateTime } from "@core/relative-time";
 import type { NodeChange } from "@shared/schema";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,9 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
       <h1 style={{ marginBottom: 4 }}>{rel.name}</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
         v{rel.version} · {rel.type} · impact: {rel.impact} · {changes.length} değişiklik
+        <br />
+        {formatDateTime(record.createdAt).date} {formatDateTime(record.createdAt).time} ·{" "}
+        {relativeTime(record.createdAt, Date.now())}
       </p>
       {rel.description ? <p>{rel.description}</p> : null}
 

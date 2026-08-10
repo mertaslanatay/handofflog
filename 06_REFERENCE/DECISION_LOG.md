@@ -283,6 +283,14 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 - Plugin→backend CORS: `POST /api/releases` için OPTIONS + CORS başlıkları eklendi.
 **Sonuç:** Faz 2 temel akışı (Publish→timeline) sevk edildi. Kalan UI/özellikler opsiyonel.
 
+## DEC-031 — Kapsam genişlemesi: Visual Design Change Tracking
+
+**Durum:** Önerildi (ürün sahibi talebi) — depolama kararı bekliyor
+**Karar:** Ürün, metinsel changelog'un yanında **görsel diff** (önceki/şimdiki ekran görüntüsü yan yana + değişen alanda mor-dashed highlight), **page-bazlı tarama**, **release metadata** ve **aktif proje/dosya algılama** ile "Visual Design Change Tracking Platform"a genişletiliyor. Bu, PRD/RELEASE_MODEL'deki "pixel-level visual diff MVP-dışı" kararını **bilinçli olarak geçersiz kılar** (ürün sahibi kararı).
+**Mimari sonuç (kritik):** "Previous version" görselini gösterebilmek için **baseline anında ekran görüntüsü yakalanıp saklanmalı** (`node.exportAsync` PNG). Snapshot'lar şu an görsel tutmuyor. Görsellerin nereye saklanacağı bir depolama/maliyet kararı: Figma `clientStorage` (kota ~5MB, birkaç frame) vs web object storage (Vercel Blob/S3 — provisioning). Bu netleşmeden görsel-diff boru hattı yazılmayacak.
+**Şimdilik yapıldı (depolamadan bağımsız):** relative-time (Feature 2) + ekran-bazlı gruplama/sayım (Feature 4/5) çekirdek yardımcıları, testli.
+**Kalan tasklar:** `04_DELIVERY/SPRINT_VISUAL_DIFF.md`.
+
 ## TD-013 — Web build'inde TS/ESLint kontrolü kapalı
 
 **Durum:** Açık
