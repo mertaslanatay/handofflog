@@ -297,6 +297,15 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 `next.config` `ignoreBuildErrors`/`ignoreDuringBuilds` açık (cross-package tip artefaktı yüzünden). Kod plugin projesinde strict + testli. Monorepo split'inden (TD-009) sonra kapatılıp gerçek build-time tip kontrolü geri açılmalı.
 **Risk:** Orta. **Çözüm:** TD-009 ile birlikte.
 
+## DEC-032 — Page taramasında tracking ID yazma yok (performans)
+
+**Durum:** Kabul edildi
+**Karar:** `buildSnapshot` artık `persistTrackingIds` bayrağı alıyor. **Selection** modunda eskisi gibi her yeni düğüme `setPluginData` ile kalıcı tracking ID yazılır (rename/re-parent'a dayanıklılık için). **Page** modunda yazma yapılmaz; tracking kimliği `node.id`'den türetilir (`resolveTrackingId(node, false)`).
+**Gerekçe:** Bir sayfa on binlerce düğüm içerebilir; her düğüme `setPluginData` yazmak senkron doküman-mutasyonudur (dosyayı kirletir, undo geçmişi üretir, Figma köprüsünü kilitler) ve page taramasındaki ana yavaşlık kaynağıydı ("çok ağır çalışıyor"). `node.id` bir düğümün ömrü boyunca kararlı olduğundan taramalar arası eşleştirme için yeterli. Mevcut kalıcı ID'ler her iki modda da onurlandırılır → selection/page baseline'ları uyumlu kalır.
+**Ek:** `TRAVERSAL_CHUNK` 200→500 (her `setTimeout(0)` yield'i Figma'da maliyetli; daha az/büyük chunk toplam süreyi düşürür, UI yine responsive). SCOPE hard-block tamamen kaldırıldı — çok büyük scope yalnızca uyarır (DEC-031 devamı).
+**Alternatifler:** (a) invisible alt-ağaçları atlamak — diff semantiğini bozar, reddedildi; (b) page modunda derinlik sınırı — derin metin değişikliklerini kaçırır, reddedildi.
+**Sonuç:** `tracking.ts` + `snapshot.ts` + `main.ts` güncellendi; `tracking.test.ts` (persist=false → 0 yazma) eklendi. tsc + 144 test + build yeşil.
+
 **Durum:** Önerildi / Kabul edildi / Değiştirildi  
 **Karar:**  
 **Gerekçe:**  

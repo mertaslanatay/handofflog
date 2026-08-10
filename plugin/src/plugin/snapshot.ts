@@ -12,7 +12,7 @@ import {
 } from "../shared/schema";
 import { hashNode } from "../core/hash";
 import { normalizeNodeProperties } from "./normalize";
-import { ensureTrackingId } from "./tracking";
+import { resolveTrackingId } from "./tracking";
 
 /** Node types that can be used as a tracking scope root. */
 export const SUPPORTED_SCOPE_TYPES: ReadonlySet<string> = new Set([
@@ -38,8 +38,11 @@ function hasChildren(node: ScopeRoot): node is ScopeRoot & ChildrenMixin {
 
 /** Hard depth cap to prevent runaway recursion (NFR §2). */
 export const MAX_TRAVERSAL_DEPTH = 200;
-/** Nodes processed between cooperative yields to the main thread (NFR §1). */
-export const TRAVERSAL_CHUNK = 200;
+/** Nodes processed between cooperative yields to the main thread (NFR §1).
+ *  Each yield is a `setTimeout(0)` that carries real overhead in the Figma
+ *  runtime, so on large page scans fewer, larger chunks are meaningfully
+ *  faster while still keeping the UI responsive. */
+export const TRAVERSAL_CHUNK = 500;
 
 /** Cheap pre-count of the subtree size, used to gate oversized scopes (B-02). */
 export function countNodes(root: ScopeRoot): number {
@@ -82,8 +85,12 @@ export async function buildSnapshot(
     snapshotId: string;
     onProgress?: (processed: number) => void;
     shouldCancel?: () => boolean;
+    /** Persist new tracking IDs to plugin data. Defaults to true; page scans
+     *  pass false to skip per-node document writes (see resolveTrackingId). */
+    persistTrackingIds?: boolean;
   }
 ): Promise<BuildSnapshotResult> {
+  const persistTrackingIds = args.persistTrackingIds ?? true;
   const nodes: Record<string, NodeSnapshot> = {};
   const visitedNodeIds = new Set<string>();
   let processed = 0;
@@ -108,7 +115,10 @@ export async function buildSnapshot(
     // Figma methods below exist on both SceneNode and PageNode; a page root has
     // no geometry so normalize simply returns an empty property bag.
     const sceneNode = node as SceneNode;
-    const trackingId = ensureTrackingId(sceneNode);
+    const trackingId =
+      node.type === "PAGE"
+        ? `tid_page_${node.id.replace(/[^a-zA-Z0-9]/g, "_")}`
+        : resolveTrackingId(sceneNode, persistTrackingIds);
     const properties = node.type === "PAGE" ? {} : normalizeNodeProperties(sceneNode);
 
     const childTrackingIds: string[] = [];

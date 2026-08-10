@@ -23,10 +23,26 @@ export function readTrackingId(node: SceneNode): string | undefined {
 
 /** Return the node's tracking ID, assigning & persisting one if needed. */
 export function ensureTrackingId(node: SceneNode): string {
+  return resolveTrackingId(node, true);
+}
+
+/**
+ * Resolve a node's tracking ID.
+ *
+ * When `persist` is true (selection scope, small subtrees) a fresh ID is written
+ * to plugin data so it survives rename/re-parenting. When `persist` is false
+ * (page scans, potentially tens of thousands of nodes) we deliberately AVOID the
+ * per-node `setPluginData` write: it is a synchronous document mutation that
+ * dirties the file and dominates page-scan time. `node.id` is already stable for
+ * the lifetime of a node, so it is a perfectly good tracking key for matching
+ * across scans without touching the document. Any pre-existing persisted ID is
+ * still honored so selection- and page-scoped baselines stay compatible.
+ */
+export function resolveTrackingId(node: SceneNode, persist: boolean): string {
   const existing = readTrackingId(node);
   if (existing) return existing;
   const id = `tid_${sanitize(node.id)}`;
-  node.setPluginData(TRACKING_KEY, id);
+  if (persist) node.setPluginData(TRACKING_KEY, id);
   return id;
 }
 

@@ -186,7 +186,7 @@ function baselineInfo(snapshot: Snapshot): BaselineInfo {
 // --- Actions ----------------------------------------------------------------
 
 /** Gate oversized scopes and return the node count for progress (B-01/B-02). */
-function checkScope(node: ScopeRoot): { error?: PluginError; total: number } {
+function checkScope(node: ScopeRoot): { total: number } {
   const total = countNodes(node);
   const verdict = evaluateScopeSize(total);
   // Warn but never block — page scanning is inherently large (DEC-031).
@@ -250,7 +250,8 @@ async function sendInit(): Promise<void> {
 }
 
 async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
-  const scope = resolveScope(input.scopeMode ?? "selection");
+  const mode = input.scopeMode ?? "selection";
+  const scope = resolveScope(mode);
   if (!scope.ok) return postError(scope.error);
 
   const scopeId = scopeIdFor(scope.root);
@@ -263,8 +264,7 @@ async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
     // A read failure here shouldn't block creating a fresh baseline.
   }
 
-  const { error: sizeError, total } = checkScope(scope.root);
-  if (sizeError) return postError(sizeError);
+  const { total } = checkScope(scope.root);
 
   const startedAt = Date.now();
   try {
@@ -272,6 +272,7 @@ async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
       scopeId,
       now: new Date().toISOString(),
       snapshotId: genId("snap"),
+      persistTrackingIds: mode !== "page",
       onProgress: (processed) =>
         post({ type: "PROGRESS", payload: { phase: "baseline", processed, total } }),
     });
@@ -304,7 +305,8 @@ async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
 }
 
 async function scanChanges(input: { scopeMode?: ScopeMode }): Promise<void> {
-  const scope = resolveScope(input.scopeMode ?? "selection");
+  const mode = input.scopeMode ?? "selection";
+  const scope = resolveScope(mode);
   if (!scope.ok) return postError(scope.error);
 
   const scopeId = scopeIdFor(scope.root);
@@ -338,8 +340,7 @@ async function scanChanges(input: { scopeMode?: ScopeMode }): Promise<void> {
     return postError(toPluginError(err));
   }
 
-  const { error: sizeError, total } = checkScope(scope.root);
-  if (sizeError) return postError(sizeError);
+  const { total } = checkScope(scope.root);
 
   scanCancelled = false;
   const startedAt = Date.now();
@@ -348,6 +349,7 @@ async function scanChanges(input: { scopeMode?: ScopeMode }): Promise<void> {
       scopeId,
       now: new Date().toISOString(),
       snapshotId: genId("snap"),
+      persistTrackingIds: mode !== "page",
       onProgress: (processed) =>
         post({ type: "PROGRESS", payload: { phase: "scan", processed, total } }),
       shouldCancel: () => scanCancelled,
