@@ -6,6 +6,18 @@ import { publishRelease, publishReleaseWithToken, listReleases } from "@backend/
 import { AuthzError } from "@backend/authz";
 import { ReleaseSchema } from "@shared/release";
 
+// The Figma plugin calls this cross-origin with an Authorization header, which
+// triggers a CORS preflight. Allow it (auth is the Bearer token, not cookies).
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+};
+
+export function OPTIONS(): NextResponse {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 const SessionPublishBody = z.object({
   workspaceId: z.string(),
   projectId: z.string(),
@@ -23,16 +35,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (auth?.startsWith("Bearer ")) {
     const body = TokenPublishBody.safeParse(await req.json().catch(() => null));
-    if (!body.success) return NextResponse.json({ error: "bad_request" }, { status: 400 });
+    if (!body.success) {
+      return NextResponse.json({ error: "bad_request" }, { status: 400, headers: CORS_HEADERS });
+    }
     try {
       const rec = await publishReleaseWithToken(repo, auth.slice(7), {
         release: body.data.release,
         id: crypto.randomUUID(),
         now,
       });
-      return NextResponse.json({ release: rec.release });
+      return NextResponse.json({ release: rec.release }, { headers: CORS_HEADERS });
     } catch (err) {
-      return NextResponse.json({ error: "publish_failed" }, { status: err instanceof AuthzError ? 403 : 400 });
+      return NextResponse.json(
+        { error: "publish_failed" },
+        { status: err instanceof AuthzError ? 403 : 400, headers: CORS_HEADERS }
+      );
     }
   }
 
