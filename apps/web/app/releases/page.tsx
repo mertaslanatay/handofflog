@@ -32,10 +32,12 @@ export default async function ReleasesPage() {
         <ul style={{ listStyle: "none", padding: 0 }}>
           {releases.map((r) => (
             <li key={r.id} style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 12, marginBottom: 8 }}>
-              <strong>{r.release.name}</strong>{" "}
-              <span style={{ color: "#666" }}>
-                v{r.release.version} · {r.release.type} · {r.release.impact} · {r.release.changes.length} değişiklik
-              </span>
+              <a href={`/releases/${r.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <strong>{r.release.name}</strong>{" "}
+                <span style={{ color: "#666" }}>
+                  v{r.release.version} · {r.release.type} · {r.release.impact} · {r.release.changes.length} değişiklik
+                </span>
+              </a>
             </li>
           ))}
         </ul>

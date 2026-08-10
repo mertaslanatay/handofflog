@@ -152,10 +152,10 @@ Her görev şu dört kuralı sağlar:
 | ✅ I-07 | Token/at-rest şifreleme yardımcıları | AES-GCM round-trip testli (`backend/crypto.ts`) | `feat(web): add at-rest encryption for secrets` | I-04 | M |
 | ✅ I-08 | Plugin API client (injected fetch) | İstemci istek atar + parse (`backend/api-client.ts`, mock-testli) | `feat(plugin): add backend api client` | E-03 | M |
 | ◑ I-09 | Release publish servis + client | `services.publishRelease` + `api-client` testli; HTTP route deploy'da | `feat(web): add release publish endpoint` | I-05,I-08 | M |
-| ⏸ I-10 | Release timeline UI | `services.listReleases` (tenant-scoped, testli) hazır; UI deploy'da | `feat(web): add release timeline` | I-09 | M |
-| ⏸ I-11 | Release detail + compare view | Detay render (UI deploy'da) | `feat(web): add release detail view` | I-10 | M |
-| ◑ I-12 | Developer acknowledgement (reviewed) | `services.acknowledgeRelease` (idempotent, testli); UI deploy'da | `feat(web): add developer acknowledgement` | I-11 | M |
-| ◑ I-13 | Acknowledgement oranı (designer görünürlüğü) | `services.acknowledgementRate` testli; UI deploy'da | `feat(web): show acknowledgement rate` | I-12 | M |
+| ✅ I-10 | Release timeline UI | `/releases` listesi (canlı) | `feat(web): add release timeline` | I-09 | M |
+| ✅ I-11 | Release detail view | `/releases/[id]` — release + değişiklik listesi | `feat(web): add release detail view` | I-10 | M |
+| ✅ I-12 | Developer acknowledgement (reviewed) | AckPanel "İncelendi işaretle" → POST ack | `feat(web): add developer acknowledgement` | I-11 | M |
+| ✅ I-13 | Acknowledgement oranı (designer görünürlüğü) | Detay sayfasında oran + bar | `feat(web): show acknowledgement rate` | I-12 | M |
 | I-14 | Slack webhook (minimal içerik) | Webhook tetiklenir | `feat(web): notify slack on publish` | I-09 | M |
 | I-15 | Retention / silme akışı | Silme kaskadı çalışır | `feat(web): implement data retention and deletion` | I-04 | M |
 
