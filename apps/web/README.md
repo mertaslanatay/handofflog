@@ -70,5 +70,6 @@ appears in the web timeline.**
 
 ## Remaining wiring (tracked)
 
-- **UI:** release detail/compare (I-11), developer inbox + ack button + rate
-  display (I-12/I-13 UI), Slack webhook (I-14), retention/delete (I-15).
+- Token revoke UI; time-based retention job (manual delete done, I-15);
+  monorepo split (TD-009) + re-enable build-time typecheck (TD-013);
+  release compare view. Core Phase 2 flows are live.

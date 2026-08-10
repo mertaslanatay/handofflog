@@ -16,6 +16,8 @@ import type {
 export interface Repository {
   savePluginToken(token: PluginToken): Promise<void>;
   findPluginTokenByHash(tokenHash: string): Promise<PluginToken | undefined>;
+  /** Delete a workspace and all of its data (I-15 right-to-deletion). */
+  deleteWorkspace(workspaceId: string): Promise<void>;
   addWorkspace(workspace: Workspace): Promise<void>;
   addMember(member: WorkspaceMember): Promise<void>;
   getMembers(workspaceId: string): Promise<WorkspaceMember[]>;
@@ -42,6 +44,15 @@ export class InMemoryRepository implements Repository {
   }
   async findPluginTokenByHash(tokenHash: string): Promise<PluginToken | undefined> {
     return this.tokens.find((t) => t.tokenHash === tokenHash);
+  }
+
+  async deleteWorkspace(workspaceId: string): Promise<void> {
+    this.workspaces = this.workspaces.filter((w) => w.id !== workspaceId);
+    this.members = this.members.filter((m) => m.workspaceId !== workspaceId);
+    this.projects = this.projects.filter((p) => p.workspaceId !== workspaceId);
+    this.releases = this.releases.filter((r) => r.workspaceId !== workspaceId);
+    this.acks = this.acks.filter((a) => a.workspaceId !== workspaceId);
+    this.tokens = this.tokens.filter((t) => t.workspaceId !== workspaceId);
   }
 
   async addWorkspace(workspace: Workspace): Promise<void> {

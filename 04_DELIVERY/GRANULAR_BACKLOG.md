@@ -156,8 +156,8 @@ Her görev şu dört kuralı sağlar:
 | ✅ I-11 | Release detail view | `/releases/[id]` — release + değişiklik listesi | `feat(web): add release detail view` | I-10 | M |
 | ✅ I-12 | Developer acknowledgement (reviewed) | AckPanel "İncelendi işaretle" → POST ack | `feat(web): add developer acknowledgement` | I-11 | M |
 | ✅ I-13 | Acknowledgement oranı (designer görünürlüğü) | Detay sayfasında oran + bar | `feat(web): show acknowledgement rate` | I-12 | M |
-| I-14 | Slack webhook (minimal içerik) | Webhook tetiklenir | `feat(web): notify slack on publish` | I-09 | M |
-| I-15 | Retention / silme akışı | Silme kaskadı çalışır | `feat(web): implement data retention and deletion` | I-04 | M |
+| ✅ I-14 | Slack webhook (minimal içerik) | `backend/slack.ts` testli; publish'te best-effort (SLACK_WEBHOOK_URL) | `feat(web): notify slack on publish` | I-09 | M |
+| ◑ I-15 | Retention / silme akışı | Owner "workspace sil" (cascade) + /settings UI; zamanlı retention job sonraya | `feat(web): implement data retention and deletion` | I-04 | M |
 
 ---
 

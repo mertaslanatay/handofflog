@@ -38,6 +38,12 @@ export class PrismaRepository implements Repository {
     });
   }
 
+  async deleteWorkspace(workspaceId: string): Promise<void> {
+    // Cascades to members, projects, releases, acks (schema onDelete: Cascade).
+    await prisma.workspace.delete({ where: { id: workspaceId } });
+    await prisma.pluginToken.deleteMany({ where: { workspaceId } });
+  }
+
   async findPluginTokenByHash(tokenHash: string): Promise<PluginToken | undefined> {
     const t = await prisma.pluginToken.findUnique({ where: { tokenHash } });
     if (!t) return undefined;

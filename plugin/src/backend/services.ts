@@ -11,6 +11,7 @@ import {
   assertRole,
   assertWorkspaceAccess,
   AuthzError,
+  canManageMembers,
   canPublish,
   filterByWorkspace,
 } from "./authz";
@@ -109,6 +110,18 @@ export async function mintPluginToken(
   };
   await repo.savePluginToken(token);
   return token;
+}
+
+/** Delete a workspace and all its data (I-15). Owner only. */
+export async function deleteWorkspace(
+  repo: Repository,
+  ctx: AuthContext,
+  workspaceId: string
+): Promise<void> {
+  const members = await repo.getMembers(workspaceId);
+  const role = assertWorkspaceAccess(members, ctx.userId, workspaceId);
+  assertRole(role, canManageMembers);
+  await repo.deleteWorkspace(workspaceId);
 }
 
 /** Release timeline for a workspace/project (I-10), tenant-scoped. */

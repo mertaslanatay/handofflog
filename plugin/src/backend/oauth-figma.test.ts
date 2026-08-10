@@ -8,7 +8,7 @@ describe("Figma OAuth builders", () => {
     expect(url.searchParams.get("client_id")).toBe("cid");
     expect(url.searchParams.get("state")).toBe("xyz");
     expect(url.searchParams.get("response_type")).toBe("code");
-    expect(url.searchParams.get("scope")).toBe("file_read");
+    expect(url.searchParams.get("scope")).toBe("current_user:read");
   });
 
   it("builds a form-encoded token-exchange request", () => {

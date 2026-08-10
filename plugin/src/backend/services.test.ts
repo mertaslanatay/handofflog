@@ -7,6 +7,7 @@ import {
   listReleases,
   acknowledgeRelease,
   acknowledgementRate,
+  deleteWorkspace,
   NotFoundError,
 } from "./services";
 import { AuthzError } from "./authz";
@@ -103,6 +104,20 @@ describe("plugin token publish (I-08 wiring)", () => {
     await expect(
       publishReleaseWithToken(repo, "bogus", { release: makeRelease(), id: "x", now: "t" })
     ).rejects.toBeInstanceOf(AuthzError);
+  });
+});
+
+describe("deleteWorkspace (I-15)", () => {
+  it("owner can delete; data is gone", async () => {
+    const repo = await seed();
+    await publishRelease(repo, { userId: "dev" }, { workspaceId: "w1", projectId: "p1", release: makeRelease(), id: "rr1", now: "t" });
+    await deleteWorkspace(repo, { userId: "owner" }, "w1");
+    await expect(listReleases(repo, { userId: "owner" }, "w1")).rejects.toBeInstanceOf(AuthzError); // no longer a member
+  });
+
+  it("non-owner member cannot delete", async () => {
+    const repo = await seed();
+    await expect(deleteWorkspace(repo, { userId: "dev" }, "w1")).rejects.toBeInstanceOf(AuthzError);
   });
 });
 

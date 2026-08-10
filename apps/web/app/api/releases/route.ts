@@ -4,7 +4,21 @@ import { getSessionUserId } from "@/server/session";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { publishRelease, publishReleaseWithToken, listReleases } from "@backend/services";
 import { AuthzError } from "@backend/authz";
+import { buildSlackMessage, notifySlack } from "@backend/slack";
 import { ReleaseSchema } from "@shared/release";
+
+async function maybeNotifySlack(text: string): Promise<void> {
+  const webhook = process.env.SLACK_WEBHOOK_URL;
+  if (!webhook) return;
+  await notifySlack(
+    async (u, init) => {
+      const r = await fetch(u, init);
+      return { ok: r.ok, status: r.status };
+    },
+    webhook,
+    text
+  );
+}
 
 // The Figma plugin calls this cross-origin with an Authorization header, which
 // triggers a CORS preflight. Allow it (auth is the Bearer token, not cookies).
@@ -44,6 +58,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         id: crypto.randomUUID(),
         now,
       });
+      await maybeNotifySlack(
+        buildSlackMessage(rec.release, `${process.env.APP_BASE_URL ?? ""}/releases/${rec.id}`)
+      );
       return NextResponse.json({ release: rec.release }, { headers: CORS_HEADERS });
     } catch (err) {
       return NextResponse.json(

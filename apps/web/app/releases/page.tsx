@@ -25,7 +25,12 @@ export default async function ReleasesPage() {
 
   return (
     <main>
-      <h1>Releases</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <h1>Releases</h1>
+        <a href="/settings" style={{ color: "#005a9e", fontSize: 13 }}>
+          Ayarlar
+        </a>
+      </div>
       {releases.length === 0 ? (
         <p>Henüz release yok. Figma plugin&apos;inden bir tarama yayınla (Publish).</p>
       ) : (
