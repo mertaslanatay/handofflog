@@ -19,7 +19,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { userId } = await ensureUserAndWorkspace(profile);
     await createSession(userId);
     return NextResponse.redirect(new URL("/releases", req.url));
-  } catch {
-    return NextResponse.redirect(new URL("/?error=oauth_failed", req.url));
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("oauth_callback_error", err);
+    const reason = err instanceof Error ? err.message : "unknown";
+    return NextResponse.redirect(
+      new URL(`/?error=oauth_failed&reason=${encodeURIComponent(reason)}`, req.url)
+    );
   }
 }
