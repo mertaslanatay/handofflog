@@ -6,9 +6,9 @@
  */
 export const FIGMA_AUTHORIZE_URL = "https://www.figma.com/oauth";
 export const FIGMA_TOKEN_URL = "https://api.figma.com/v1/oauth/token";
-// Figma's current OAuth scope for reading files/profile (older "file_read"
-// is rejected as "Invalid scopes for app").
-export const DEFAULT_SCOPES = ["files:read"];
+// Login only needs the user's identity (GET /v1/me) → current_user:read.
+// (Must be enabled in the Figma app's OAuth scopes too.)
+export const DEFAULT_SCOPES = ["current_user:read"];
 
 export interface FigmaOAuthConfig {
   clientId: string;
