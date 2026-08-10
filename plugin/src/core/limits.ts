@@ -6,10 +6,13 @@
 import type { Snapshot } from "../shared/schema";
 import { stableStringify } from "./serialize";
 
-/** Above this node count the UI warns but proceeds. */
-export const SCOPE_SOFT_LIMIT = 2000;
-/** Above this node count a scope is refused (SCOPE_TOO_LARGE). */
-export const SCOPE_HARD_LIMIT = 10000;
+/** Above this node count the UI warns but proceeds. Page scans are large, so
+ *  this is set high enough not to nag on real design pages. */
+export const SCOPE_SOFT_LIMIT = 10000;
+/** Above this node count a scope is refused (SCOPE_TOO_LARGE). Raised for
+ *  page-based scanning; extreme scopes still degrade gracefully via the
+ *  snapshot-size warning + storage-quota handling. */
+export const SCOPE_HARD_LIMIT = 60000;
 
 /** Snapshot byte-size warn / hard thresholds. */
 export const SNAPSHOT_SIZE_WARN_BYTES = 1_000_000;

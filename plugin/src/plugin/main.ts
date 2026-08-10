@@ -189,10 +189,10 @@ function baselineInfo(snapshot: Snapshot): BaselineInfo {
 function checkScope(node: ScopeRoot): { error?: PluginError; total: number } {
   const total = countNodes(node);
   const verdict = evaluateScopeSize(total);
+  // Warn but never block — page scanning is inherently large (DEC-031).
   if (verdict === "too-large") {
-    return { error: pluginError("SCOPE_TOO_LARGE"), total };
-  }
-  if (verdict === "warn") {
+    figma.notify("Çok büyük scope: tarama uzun sürebilir; kaydedilemezse daha dar bir kapsam dene.");
+  } else if (verdict === "warn") {
     figma.notify("Büyük scope: işlem biraz uzun sürebilir.");
   }
   return { total };

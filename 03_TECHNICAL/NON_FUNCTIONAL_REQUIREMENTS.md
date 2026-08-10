@@ -19,8 +19,8 @@ Referans donanım: son 3 yıl orta seviye dizüstü, Figma desktop.
 
 ## 2. Ölçek limitleri ve degradasyon
 
-- **Yumuşak eşik:** 2.000 node. Aşılınca UI uyarır ("Büyük scope, tarama uzun sürebilir") ama devam eder.
-- **Sert eşik:** 10.000 node. Aşılınca `UNSUPPORTED_SELECTION` benzeri "SCOPE_TOO_LARGE" ile kibarca durdurulur; baseline bozulmaz (bkz. ERROR_CATALOG).
+- **Yumuşak eşik:** 10.000 node. Aşılınca UI uyarır ("Büyük scope, tarama uzun sürebilir") ama devam eder. (Page-bazlı tarama için yükseltildi — DEC-031.)
+- **Sert eşik:** 60.000 node. Aşılınca "SCOPE_TOO_LARGE" ile kibarca durdurulur; baseline bozulmaz. Not: çok büyük sayfalarda snapshot clientStorage kotasını (~5MB) aşabilir → `STORAGE_ERROR` (baseline korunur). Kalıcı çözüm: sayfa snapshot'larını web/object storage'a taşımak (Faz 2+).
 - **Derinlik:** 50+ seviye iç içe geçmede uyarı; sonsuz döngü koruması (ziyaret edilen id seti) zorunlu.
 
 ## 3. Bellek ve storage bütçesi
