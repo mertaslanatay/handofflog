@@ -12,9 +12,24 @@ import type { VisualUpload } from "@shared/release";
 import type { UploadedScreenshot } from "@backend/visual";
 
 /** Deterministic, collision-free pathname scoped to a release. */
-function screenshotPath(releaseId: string, index: number, screen: string): string {
+function screenshotPath(
+  releaseId: string,
+  index: number,
+  screen: string,
+  side: "before" | "after"
+): string {
   const safe = screen.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 40) || "screen";
-  return `screenshots/${releaseId}/${index}-${safe}.png`;
+  return `screenshots/${releaseId}/${index}-${side}-${safe}.png`;
+}
+
+async function putPng(pathname: string, base64: string): Promise<string> {
+  const bytes = Buffer.from(base64, "base64");
+  const res = await put(pathname, bytes, {
+    access: "private",
+    contentType: "image/png",
+    addRandomSuffix: false,
+  });
+  return res.pathname;
 }
 
 /** True when the release id can be recovered from a proxy pathname. */
@@ -34,24 +49,28 @@ export async function uploadVisualScreens(
 ): Promise<UploadedScreenshot[]> {
   const out: UploadedScreenshot[] = [];
   for (const [i, u] of uploads.entries()) {
-    if (!u.afterBase64) {
-      out.push({ screen: u.screen });
-      continue;
+    const entry: UploadedScreenshot = { screen: u.screen };
+    if (u.afterBase64) {
+      try {
+        const pathname = await putPng(screenshotPath(releaseId, i, u.screen, "after"), u.afterBase64);
+        entry.after = { pathname, width: u.width, height: u.height };
+      } catch {
+        // keep entry without after image
+      }
     }
-    try {
-      const bytes = Buffer.from(u.afterBase64, "base64");
-      const res = await put(screenshotPath(releaseId, i, u.screen), bytes, {
-        access: "private",
-        contentType: "image/png",
-        addRandomSuffix: false,
-      });
-      out.push({
-        screen: u.screen,
-        after: { pathname: res.pathname, width: u.width, height: u.height },
-      });
-    } catch {
-      out.push({ screen: u.screen });
+    if (u.beforeBase64) {
+      try {
+        const pathname = await putPng(screenshotPath(releaseId, i, u.screen, "before"), u.beforeBase64);
+        entry.before = {
+          pathname,
+          width: u.beforeWidth ?? u.width,
+          height: u.beforeHeight ?? u.height,
+        };
+      } catch {
+        // keep entry without before image
+      }
     }
+    out.push(entry);
   }
   return out;
 }

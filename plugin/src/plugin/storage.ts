@@ -111,6 +111,47 @@ export async function saveReleases(scopeId: string, releases: Release[]): Promis
   }
 }
 
+// --- Baseline screenshots (Feature 1 / before-image) -------------------------
+
+/** A captured "before" screenshot for one screen (base64 PNG + dimensions). */
+export interface BaseShot {
+  base64: string;
+  width: number;
+  height: number;
+}
+/** Map of screen name → captured before-image for a scope. */
+export type BaseShots = Record<string, BaseShot>;
+
+const BaseShotSchema = z.object({
+  base64: z.string(),
+  width: z.number(),
+  height: z.number(),
+});
+const BaseShotsSchema = z.record(z.string(), BaseShotSchema);
+
+/** Load baseline screenshots for a scope; {} when none/invalid. Never throws —
+ *  the before-image feature is best-effort and must not block core flows. */
+export async function loadBaseShots(scopeId: string): Promise<BaseShots> {
+  try {
+    const raw = await figma.clientStorage.getAsync(StorageKeys.baseshots(scopeId));
+    const parsed = BaseShotsSchema.safeParse(raw);
+    return parsed.success ? parsed.data : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Persist baseline screenshots for a scope. Best-effort: on quota/other failure
+ *  it silently gives up (before/after degrades to after-only) — the baseline and
+ *  releases are stored separately and remain intact. */
+export async function saveBaseShots(scopeId: string, shots: BaseShots): Promise<void> {
+  try {
+    await figma.clientStorage.setAsync(StorageKeys.baseshots(scopeId), shots);
+  } catch {
+    // Ignore — before-image is optional; core data is unaffected.
+  }
+}
+
 // --- Settings (telemetry opt-in) --------------------------------------------
 
 export interface Settings {

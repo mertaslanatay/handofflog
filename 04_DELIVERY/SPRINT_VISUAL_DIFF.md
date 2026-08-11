@@ -36,9 +36,11 @@ Bağlam: DEC-031. Görev sözleşmesi GRANULAR_BACKLOG ile aynı.
 - ◑ VD-7 "Show Visual Diff" butonu ile açılıyor; changelog-maddesine-tıkla → viewer bağlama sonraki adım.
 - ✅ VD-2 Publish anında "current + highlight" ekran görüntülerini **Private Vercel Blob**'a yükle (`@vercel/blob` `put access:'private'`), release JSON'una `visualDiff` ref'leri (pathname+dims) olarak sakla. Web'de kimlik-doğrulamalı okuma proxy'si (`/api/screenshots`, workspace üyelik kontrolü). Prisma migration gerekmez (release Json).
 - ✅ VD-6 (kalıcı yarı) Web release detay sayfasında ekran görüntüsü + highlight overlay (`%` bazlı).
-- ⏸ VD-1 Baseline anında "before" PNG yakala → şu an persist edilen tek görüntü "current" (after). Gerçek before/after **yan yana** için baseline-zamanı yakalama + before URL saklama sonraki adım.
+- ✅ VD-1 Baseline anında "before" PNG yakala (backend bağlıysa) → clientStorage'da `baseshots:<scopeId>` (base64, best-effort, kotayı bloke etmez). Publish'te before+after birlikte `visualUploads` ile gider; server ikisini de Blob'a yükler. Publish sonrası baseshots, current (after) ile tazelenir → bir sonraki döngüde before hazır.
+- ✅ VD-6 (yan yana) Web detay sayfasında **Önce (baseline) | Sonra (güncel)** iki panel; before'da removed+modified, after'da added+modified highlight'ları.
 
-> Publish-zamanı görsel akışı tamam: plugin export @1x → base64 → server Private Blob'a yükler → release'e ref'ler işlenir → web proxy ile gösterilir. Plugin: tsc + 150 test + build yeşil. Web (Next/Prisma/Blob) sandbox'ta derlenemez → deploy'da doğrulanır. Önkoşul: Private Blob store projeye bağlı + (yerelde) `BLOB_READ_WRITE_TOKEN`.
+> Tam before/after akışı tamam. Plugin: tsc + 151 test + build yeşil. Web deploy'da doğrulanır.
+> **Runtime notu:** "before" yalnızca **backend bağlıyken oluşturulan** baseline'lar için var. Bu güncellemeden önceki baseline'lar before içermez → o release'ler after-only görünür. Backend'e bağlan, sonra **yeni baseline** oluştur.
 
 ## Açık karar (ürün sahibinden)
 **Görsel diff için "previous version" nasıl elde edilecek + görseller nereye?**

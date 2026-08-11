@@ -269,6 +269,10 @@ export type VisualDiffScreen = z.infer<typeof VisualDiffScreenSchema>;
 export const StorageKeys = {
   snapshot: (scopeId: string): string => `handofflog:snapshot:${scopeId}`,
   releases: (scopeId: string): string => `handofflog:releases:${scopeId}`,
+  /** Baseline "before" screenshots per scope (base64), captured at baseline time
+   *  so publish can show a before/after visual diff (Feature 1). Transient and
+   *  best-effort: a write failure must never affect the baseline itself. */
+  baseshots: (scopeId: string): string => `handofflog:baseshots:${scopeId}`,
   settings: "handofflog:settings",
 } as const;
 

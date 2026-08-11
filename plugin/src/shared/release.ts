@@ -37,8 +37,13 @@ export const VisualUploadSchema = z.object({
   regions: z.array(HighlightRegionSchema),
   /** base64-encoded PNG bytes (no `data:` prefix); omitted if export failed. */
   afterBase64: z.string().optional(),
+  /** base64 "before" image captured at baseline time; enables side-by-side. */
+  beforeBase64: z.string().optional(),
   width: z.number(),
   height: z.number(),
+  /** Before-image dimensions (may differ from after if the screen was resized). */
+  beforeWidth: z.number().optional(),
+  beforeHeight: z.number().optional(),
 });
 export type VisualUpload = z.infer<typeof VisualUploadSchema>;
 

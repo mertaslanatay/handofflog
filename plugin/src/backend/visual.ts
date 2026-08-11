@@ -11,9 +11,10 @@ import type {
   VisualUpload,
 } from "../shared/release";
 
-/** Result of uploading one screen's "after" image. */
+/** Result of uploading one screen's "before"/"after" images. */
 export interface UploadedScreenshot {
   screen: string;
+  before?: PersistedScreenshot;
   after?: PersistedScreenshot;
 }
 
@@ -27,15 +28,14 @@ export function assembleVisualScreens(
   uploads: VisualUpload[],
   uploaded: UploadedScreenshot[]
 ): ReleaseVisualScreen[] {
-  const refByScreen = new Map<string, PersistedScreenshot>();
-  for (const u of uploaded) {
-    if (u.after) refByScreen.set(u.screen, u.after);
-  }
+  const byScreen = new Map<string, UploadedScreenshot>();
+  for (const u of uploaded) byScreen.set(u.screen, u);
   return uploads
     .map((u) => {
       const screen: ReleaseVisualScreen = { screen: u.screen, regions: u.regions };
-      const after = refByScreen.get(u.screen);
-      if (after) screen.after = after;
+      const refs = byScreen.get(u.screen);
+      if (refs?.before) screen.before = refs.before;
+      if (refs?.after) screen.after = refs.after;
       return screen;
     })
     .sort((a, b) => a.screen.localeCompare(b.screen));

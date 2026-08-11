@@ -22,6 +22,19 @@ describe("assembleVisualScreens (VD-2)", () => {
     expect(screens.find((s) => s.screen === "Home")?.regions[0]?.trackingId).toBe("a");
   });
 
+  it("attaches both before and after refs when present", () => {
+    const screens = assembleVisualScreens([uploads[0]!], [
+      {
+        screen: "Home",
+        before: { pathname: "p/before.png", width: 400, height: 800 },
+        after: { pathname: "p/after.png", width: 400, height: 800 },
+      },
+    ]);
+    const home = screens.find((s) => s.screen === "Home");
+    expect(home?.before?.pathname).toBe("p/before.png");
+    expect(home?.after?.pathname).toBe("p/after.png");
+  });
+
   it("keeps regions but omits image when a screen's upload failed", () => {
     const screens = assembleVisualScreens(uploads, [
       { screen: "Home", after: { pathname: "p/home.png", width: 400, height: 800 } },

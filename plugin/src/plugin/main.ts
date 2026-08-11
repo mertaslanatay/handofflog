@@ -47,6 +47,7 @@ import {
 } from "./snapshot";
 import type { ScopeMode } from "../shared/messages";
 import { loadBaseline, saveBaseline, StorageError } from "./storage";
+import { loadBaseShots, saveBaseShots, type BaseShots } from "./storage";
 import { createReleaseApiClient } from "../backend/api-client";
 import type { Release, VisualUpload } from "../shared/release";
 
@@ -294,6 +295,13 @@ async function createBaseline(input: { scopeMode?: ScopeMode }): Promise<void> {
     lastBaseline = snapshot;
     lastCurrent = undefined;
     lastChangeSet = undefined;
+    // Capture "before" screenshots now (while the baseline IS the current
+    // design) so publish can show a before/after diff. Only when a backend is
+    // connected (that's the only place they're shown); best-effort.
+    if (backendToken) {
+      const shots = await captureBaseShots(snapshot, 1);
+      await saveBaseShots(scopeId, shots);
+    }
     post({
       type: "SNAPSHOT_CREATED",
       payload: {
@@ -420,9 +428,15 @@ async function publishRelease(input: PublishReleaseInput): Promise<void> {
     // when a backend is connected (they're uploaded there); scale 1 to keep the
     // publish request body well under serverless limits.
     let uploads: VisualUpload[] = [];
+    let refreshedShots: BaseShots | undefined;
     if (backendToken) {
       const captured = await captureVisualScreens(1);
-      uploads = visualUploadsFrom(captured.screens);
+      const baseShots = await loadBaseShots(scopeId);
+      uploads = visualUploadsFrom(captured.screens, baseShots);
+      // The scanned snapshot becomes the new baseline below, so its "after"
+      // images are the "before" for the next cycle. Keep unchanged screens'
+      // existing before-images; overwrite changed ones.
+      refreshedShots = { ...baseShots, ...baseShotsFromScreens(captured.screens) };
     }
 
     const history = await loadReleases(scopeId);
@@ -431,6 +445,7 @@ async function publishRelease(input: PublishReleaseInput): Promise<void> {
     await saveBaseline(lastCurrent);
     lastBaseline = lastCurrent;
     lastChangeSet = undefined;
+    if (refreshedShots) await saveBaseShots(scopeId, refreshedShots);
     post({ type: "RELEASE_PUBLISHED", payload: release });
     telemetry.emit({
       event: "release_published",
@@ -600,6 +615,41 @@ async function captureVisualScreens(
   return { screens, partial };
 }
 
+/** Export every screen root of a snapshot to base64 PNG (capped), for use as
+ *  "before" images at the next publish. Best-effort; failures skip that screen. */
+async function captureBaseShots(snapshot: Snapshot, scale: number): Promise<BaseShots> {
+  const shots: BaseShots = {};
+  const seen = new Set<string>();
+  let count = 0;
+  for (const node of Object.values(snapshot.nodes)) {
+    const screen = node.screenName;
+    if (!screen || seen.has(screen)) continue;
+    seen.add(screen);
+    if (count >= MAX_VISUAL_DIFF_SCREENS) break;
+    const root = findScreenRoot(snapshot, screen);
+    if (!root) continue;
+    try {
+      const fnode = await figma.getNodeByIdAsync(root.nodeId);
+      if (fnode && "exportAsync" in fnode) {
+        const bytes = await (fnode as SceneNode).exportAsync({
+          format: "PNG",
+          constraint: { type: "SCALE", value: scale },
+        });
+        const box = root.absoluteBoundingBox;
+        shots[screen] = {
+          base64: figma.base64Encode(bytes),
+          width: box ? box.width : 0,
+          height: box ? box.height : 0,
+        };
+        count++;
+      }
+    } catch {
+      // Skip this screen's before-image.
+    }
+  }
+  return shots;
+}
+
 async function buildVisualDiff(): Promise<void> {
   if (!lastChangeSet || !lastBaseline || !lastCurrent) {
     return postError({
@@ -612,8 +662,15 @@ async function buildVisualDiff(): Promise<void> {
   post({ type: "VISUAL_DIFF", payload: { screens, partial } });
 }
 
-/** Strip the data-URI prefix → raw base64, dropping screens with no image. */
-function visualUploadsFrom(screens: VisualDiffScreen[]): VisualUpload[] {
+/** Strip a data-URI prefix → raw base64 (passes through bare base64). */
+function base64Of(dataUri: string): string {
+  const comma = dataUri.indexOf(",");
+  return comma >= 0 ? dataUri.slice(comma + 1) : dataUri;
+}
+
+/** Build publish uploads: current image as "after", matching baseline image
+ *  (from clientStorage) as "before". Screens with no images still carry regions. */
+function visualUploadsFrom(screens: VisualDiffScreen[], baseShots: BaseShots): VisualUpload[] {
   return screens.map((s) => {
     const upload: VisualUpload = {
       screen: s.screen,
@@ -621,13 +678,30 @@ function visualUploadsFrom(screens: VisualDiffScreen[]): VisualUpload[] {
       width: s.after?.width ?? 0,
       height: s.after?.height ?? 0,
     };
-    const uri = s.after?.dataUri;
-    if (uri) {
-      const comma = uri.indexOf(",");
-      upload.afterBase64 = comma >= 0 ? uri.slice(comma + 1) : uri;
+    if (s.after?.dataUri) upload.afterBase64 = base64Of(s.after.dataUri);
+    const before = baseShots[s.screen];
+    if (before) {
+      upload.beforeBase64 = before.base64;
+      upload.beforeWidth = before.width;
+      upload.beforeHeight = before.height;
     }
     return upload;
   });
+}
+
+/** Convert freshly captured "after" screens into BaseShots for the next cycle. */
+function baseShotsFromScreens(screens: VisualDiffScreen[]): BaseShots {
+  const shots: BaseShots = {};
+  for (const s of screens) {
+    if (s.after?.dataUri) {
+      shots[s.screen] = {
+        base64: base64Of(s.after.dataUri),
+        width: s.after.width,
+        height: s.after.height,
+      };
+    }
+  }
+  return shots;
 }
 
 // --- Wiring -----------------------------------------------------------------
