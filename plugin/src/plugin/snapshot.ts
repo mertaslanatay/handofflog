@@ -149,6 +149,19 @@ export async function buildSnapshot(
     }
     snapshot.pageName = pageName;
     if (screenName !== undefined) snapshot.screenName = screenName;
+    // Absolute bounds for visual-diff highlight overlays (VD-5). Page roots and
+    // some node kinds have no box → simply omit it.
+    if (node.type !== "PAGE" && "absoluteBoundingBox" in node) {
+      const box = (node as SceneNode).absoluteBoundingBox;
+      if (box) {
+        snapshot.absoluteBoundingBox = {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+        };
+      }
+    }
     nodes[trackingId] = snapshot;
     return trackingId;
   };

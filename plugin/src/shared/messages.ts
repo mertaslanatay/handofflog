@@ -6,7 +6,7 @@
  * ONLY channel the two contexts use to communicate.
  */
 import { z } from "zod";
-import { ChangeSetSchema } from "./schema";
+import { ChangeSetSchema, VisualDiffScreenSchema } from "./schema";
 import { ReleaseSchema, ReleaseTypeSchema } from "./release";
 
 // --- Payloads ----------------------------------------------------------------
@@ -134,6 +134,15 @@ export const ExportReadySchema = z.object({
 });
 export type ExportReady = z.infer<typeof ExportReadySchema>;
 
+/** Visual diff result: per-screen before/after images + highlight regions.
+ *  `partial` is true when some screens were skipped (size/cap) so the UI can
+ *  say so instead of implying completeness. */
+export const VisualDiffPayloadSchema = z.object({
+  screens: z.array(VisualDiffScreenSchema),
+  partial: z.boolean().default(false),
+});
+export type VisualDiffPayload = z.infer<typeof VisualDiffPayloadSchema>;
+
 // --- Plugin main → UI --------------------------------------------------------
 
 export const PluginToUIMessageSchema = z.discriminatedUnion("type", [
@@ -145,6 +154,7 @@ export const PluginToUIMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("RELEASE_PUBLISHED"), payload: ReleaseSchema }),
   z.object({ type: z.literal("RELEASES_LOADED"), payload: ReleasesLoadedSchema }),
   z.object({ type: z.literal("EXPORT_READY"), payload: ExportReadySchema }),
+  z.object({ type: z.literal("VISUAL_DIFF"), payload: VisualDiffPayloadSchema }),
   z.object({ type: z.literal("ERROR"), payload: PluginErrorSchema }),
 ]);
 export type PluginToUIMessage = z.infer<typeof PluginToUIMessageSchema>;
@@ -156,6 +166,7 @@ export const UIToPluginMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("CREATE_BASELINE"), payload: CreateBaselineInputSchema }),
   z.object({ type: z.literal("SCAN_CHANGES"), payload: ScanInputSchema }),
   z.object({ type: z.literal("CANCEL_SCAN") }),
+  z.object({ type: z.literal("GET_VISUAL_DIFF") }),
   z.object({ type: z.literal("SELECT_NODE"), payload: SelectNodeInputSchema }),
   z.object({ type: z.literal("PUBLISH_RELEASE"), payload: PublishReleaseInputSchema }),
   z.object({ type: z.literal("GET_RELEASES") }),

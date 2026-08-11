@@ -7,7 +7,8 @@ import type {
   SelectionSummary,
   SnapshotSummary,
 } from "../shared/messages";
-import type { ChangeCategory, ChangeSet, Impact, NodeChange } from "../shared/schema";
+import type { ChangeCategory, ChangeSet, Impact, NodeChange, VisualDiffScreen } from "../shared/schema";
+import type { VisualDiffPayload } from "../shared/messages";
 import type { Release, ReleaseType } from "../shared/release";
 import { formatValue } from "../core/classify";
 import { filterChanges, sortByImpact, excludeFromChangeSet } from "../core/review";
@@ -45,6 +46,8 @@ export function App(): JSX.Element {
   const [fileName, setFileName] = useState<string | undefined>();
   const [scopeMode, setScopeMode] = useState<ScopeMode>("selection");
   const [releases, setReleases] = useState<Release[]>([]);
+  const [visualDiff, setVisualDiff] = useState<VisualDiffPayload | undefined>();
+  const [visualDiffBusy, setVisualDiffBusy] = useState(false);
 
   useEffect(() => {
     const off = onPluginMessage((message) => {
@@ -94,6 +97,11 @@ export function App(): JSX.Element {
           setProgress(undefined);
           setChangeSet(message.payload);
           setExcluded(new Set());
+          setVisualDiff(undefined);
+          break;
+        case "VISUAL_DIFF":
+          setVisualDiffBusy(false);
+          setVisualDiff(message.payload);
           break;
         case "EXPORT_READY":
           downloadJson(message.payload.filename, message.payload.json);
@@ -131,6 +139,12 @@ export function App(): JSX.Element {
     sendToPlugin({ type: "CANCEL_SCAN" });
     setBusy("idle");
     setProgress(undefined);
+  }, []);
+
+  const requestVisualDiff = useCallback(() => {
+    setVisualDiffBusy(true);
+    setError(undefined);
+    sendToPlugin({ type: "GET_VISUAL_DIFF" });
   }, []);
 
   const exportJson = useCallback(
@@ -279,6 +293,10 @@ export function App(): JSX.Element {
           onToggleSort={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
           view={view}
         />
+
+        {changeSet && hasChanges(changeSet) && (
+          <VisualDiffSection payload={visualDiff} busy={visualDiffBusy} onRequest={requestVisualDiff} />
+        )}
 
         {changeSet && hasChanges(changeSet) && (
           <PublishSection changeSet={changeSet} excluded={excluded} onPublish={publish} />
@@ -701,6 +719,120 @@ function ReleaseHistory(props: { releases: Release[] }): JSX.Element {
 
 function hasChanges(cs: ChangeSet): boolean {
   return cs.added.length + cs.modified.length + cs.removed.length > 0;
+}
+
+const KIND_COLOR: Record<string, string> = {
+  added: "#16a34a",
+  removed: "#dc2626",
+  modified: "#7c3aed",
+};
+
+function VisualDiffSection(props: {
+  payload: VisualDiffPayload | undefined;
+  busy: boolean;
+  onRequest: () => void;
+}): JSX.Element {
+  const { payload, busy, onRequest } = props;
+  return (
+    <section>
+      <h2>Visual Diff</h2>
+      {!payload && (
+        <>
+          <p className="hl-muted hl-count">
+            Değişen ekranların görüntüsünü, değişen katmanlar işaretli olarak gör.
+          </p>
+          <button className="hl-primary" onClick={onRequest} disabled={busy}>
+            {busy ? "Görüntü hazırlanıyor…" : "Show Visual Diff"}
+          </button>
+        </>
+      )}
+      {payload && payload.screens.length === 0 && (
+        <p className="hl-muted hl-count">
+          İşaretlenecek konumlu değişiklik bulunamadı (koordinat bilgisi olmayan değişiklikler atlanır).
+        </p>
+      )}
+      {payload &&
+        payload.screens.map((screen) => (
+          <VisualDiffScreenView key={screen.screen} screen={screen} />
+        ))}
+      {payload && (
+        <div className="hl-bulk" style={{ marginTop: 8 }}>
+          {payload.partial && (
+            <span className="hl-muted hl-count">Bazı ekranlar atlandı (çok fazla ekran).</span>
+          )}
+          <button className="hl-link" onClick={onRequest} disabled={busy}>
+            {busy ? "Yenileniyor…" : "Yenile"}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisualDiffScreenView({ screen }: { screen: VisualDiffScreen }): JSX.Element {
+  const img = screen.after;
+  const w = img?.width ?? 0;
+  const h = img?.height ?? 0;
+  return (
+    <div className="hl-card">
+      <div className="hl-change__title">
+        <strong>{screen.screen}</strong>
+        <span className="hl-count">{screen.regions.length} değişiklik</span>
+      </div>
+      {img?.dataUri && w > 0 && h > 0 ? (
+        <div style={{ position: "relative", width: "100%", marginTop: 6 }}>
+          <img
+            src={img.dataUri}
+            alt={`${screen.screen} güncel görünüm`}
+            style={{ display: "block", width: "100%", height: "auto", borderRadius: 4 }}
+          />
+          {screen.regions.map((r) => {
+            const color = KIND_COLOR[r.kind] ?? "#7c3aed";
+            return (
+              <div
+                key={r.trackingId}
+                title={`${r.label} (${r.kind})`}
+                style={{
+                  position: "absolute",
+                  left: `${(r.x / w) * 100}%`,
+                  top: `${(r.y / h) * 100}%`,
+                  width: `${(r.width / w) * 100}%`,
+                  height: `${(r.height / h) * 100}%`,
+                  border: `2px dashed ${color}`,
+                  boxSizing: "border-box",
+                  pointerEvents: "none",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -14,
+                    left: 0,
+                    fontSize: 9,
+                    lineHeight: "12px",
+                    padding: "0 3px",
+                    background: color,
+                    color: "#fff",
+                    borderRadius: 2,
+                    whiteSpace: "nowrap",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  Changed
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="hl-muted hl-count" style={{ marginTop: 4 }}>
+          Bu ekran için görüntü alınamadı; değişen katmanlar: {screen.regions.map((r) => r.label).join(", ") || "—"}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function ScreensSummary({ changeSet }: { changeSet: ChangeSet }): JSX.Element | null {

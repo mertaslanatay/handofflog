@@ -28,14 +28,17 @@ Bağlam: DEC-031. Görev sözleşmesi GRANULAR_BACKLOG ile aynı.
 
 > Runtime (Figma) tarafı manuel test bekliyor; tsc+build+141 test yeşil.
 
-## Feature 1 — Visual Diff (⏸ storage = **Vercel Blob** kararı verildi, DEC-031)
-- ⏸ VD-1 Baseline anında değişebilecek node'ların PNG'sini `exportAsync` ile yakala
-- ⏸ VD-2 Görselleri sakla (Figma clientStorage **veya** web object storage — KARAR)
-- ⏸ VD-3 Scan'de current PNG yakala
-- ⏸ VD-4 Screenshot mesaj/veri kontratı
-- ⬜ VD-5 Değişen layer bounding-box'larını diff'ten çıkar (highlight için) — depolamadan bağımsız hazırlanabilir
-- ⏸ VD-6 UI: yan yana viewer (aynı ölçek/konum) + mor-dashed highlight + "Changed" etiketi
-- ⏸ VD-7 Changelog maddesine tıkla → Visual Diff aç
+## Feature 1 — Visual Diff (storage = **Vercel Blob**, DEC-031)
+- ✅ VD-4 Screenshot veri/mesaj kontratı — `BoundingBox`, `absoluteBoundingBox` (hash-dışı), `HighlightRegion`, `ScreenshotRef`, `VisualDiffScreen`, `VISUAL_DIFF` mesajı + `GET_VISUAL_DIFF` isteği.
+- ✅ VD-5 Değişen layer bounding-box çıkarımı — `core/highlight.ts` `highlightsByScreen` (ekran orijinine göre, saf, testli).
+- ✅ VD-3 Scan'de current PNG yakala — plugin `buildVisualDiff` `exportAsync` @2x, dataUri olarak UI'a.
+- ✅ VD-6 (yerel yarı) UI viewer: current görüntü + mor-dashed highlight + "Changed" etiketi (`%` bazlı ölçek), `App.tsx` `VisualDiffSection`.
+- ◑ VD-7 "Show Visual Diff" butonu ile açılıyor; changelog-maddesine-tıkla → viewer bağlama sonraki adım.
+- ✅ VD-2 Publish anında "current + highlight" ekran görüntülerini **Private Vercel Blob**'a yükle (`@vercel/blob` `put access:'private'`), release JSON'una `visualDiff` ref'leri (pathname+dims) olarak sakla. Web'de kimlik-doğrulamalı okuma proxy'si (`/api/screenshots`, workspace üyelik kontrolü). Prisma migration gerekmez (release Json).
+- ✅ VD-6 (kalıcı yarı) Web release detay sayfasında ekran görüntüsü + highlight overlay (`%` bazlı).
+- ⏸ VD-1 Baseline anında "before" PNG yakala → şu an persist edilen tek görüntü "current" (after). Gerçek before/after **yan yana** için baseline-zamanı yakalama + before URL saklama sonraki adım.
+
+> Publish-zamanı görsel akışı tamam: plugin export @1x → base64 → server Private Blob'a yükler → release'e ref'ler işlenir → web proxy ile gösterilir. Plugin: tsc + 150 test + build yeşil. Web (Next/Prisma/Blob) sandbox'ta derlenemez → deploy'da doğrulanır. Önkoşul: Private Blob store projeye bağlı + (yerelde) `BLOB_READ_WRITE_TOKEN`.
 
 ## Açık karar (ürün sahibinden)
 **Görsel diff için "previous version" nasıl elde edilecek + görseller nereye?**

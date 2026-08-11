@@ -6,6 +6,82 @@ import { listReleases, acknowledgementRate } from "@backend/services";
 import { AckPanel } from "@/components/AckPanel";
 import { relativeTime, formatDateTime } from "@core/relative-time";
 import type { NodeChange } from "@shared/schema";
+import type { ReleaseVisualScreen } from "@shared/release";
+
+const KIND_COLOR: Record<string, string> = {
+  added: "#16a34a",
+  removed: "#dc2626",
+  modified: "#7c3aed",
+};
+
+function VisualDiffView({ screens }: { screens: ReleaseVisualScreen[] }) {
+  const withImages = screens.filter((s) => s.after);
+  if (withImages.length === 0) return null;
+  return (
+    <section style={{ marginTop: 20 }}>
+      <h2>Visual Diff</h2>
+      {screens.map((screen) => {
+        const img = screen.after;
+        const w = img?.width ?? 0;
+        const h = img?.height ?? 0;
+        return (
+          <div key={screen.screen} style={{ marginBottom: 16 }}>
+            <p style={{ margin: "0 0 4px" }}>
+              <strong>{screen.screen}</strong>{" "}
+              <span style={{ color: "#666" }}>· {screen.regions.length} değişiklik</span>
+            </p>
+            {img && w > 0 && h > 0 ? (
+              <div style={{ position: "relative", width: "100%", maxWidth: 640, border: "1px solid #eee", borderRadius: 4 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/screenshots?pathname=${encodeURIComponent(img.pathname)}`}
+                  alt={`${screen.screen} güncel görünüm`}
+                  style={{ display: "block", width: "100%", height: "auto", borderRadius: 4 }}
+                />
+                {screen.regions.map((r) => {
+                  const color = KIND_COLOR[r.kind] ?? "#7c3aed";
+                  return (
+                    <div
+                      key={r.trackingId}
+                      title={`${r.label} (${r.kind})`}
+                      style={{
+                        position: "absolute",
+                        left: `${(r.x / w) * 100}%`,
+                        top: `${(r.y / h) * 100}%`,
+                        width: `${(r.width / w) * 100}%`,
+                        height: `${(r.height / h) * 100}%`,
+                        border: `2px dashed ${color}`,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: -15,
+                          left: 0,
+                          fontSize: 10,
+                          padding: "0 3px",
+                          background: color,
+                          color: "#fff",
+                          borderRadius: 2,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {r.kind}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ color: "#666", margin: 0 }}>Görüntü yok.</p>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +135,10 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
       {rel.description ? <p>{rel.description}</p> : null}
 
       <AckPanel releaseId={record.id} workspaceId={workspaceId} initialRate={rate} />
+
+      {rel.visualDiff && rel.visualDiff.length > 0 ? (
+        <VisualDiffView screens={rel.visualDiff} />
+      ) : null}
 
       <h2 style={{ marginTop: 20 }}>Değişiklikler</h2>
       {changes.length === 0 ? (

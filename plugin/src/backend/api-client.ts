@@ -5,7 +5,7 @@
  * malformed server reply fails loudly rather than corrupting UI state.
  */
 import { z } from "zod";
-import { ReleaseSchema, type Release } from "../shared/release";
+import { ReleaseSchema, type Release, type VisualUpload } from "../shared/release";
 
 export type FetchLike = (
   input: string,
@@ -36,20 +36,24 @@ export class ApiError extends Error {
 const PublishResponseSchema = z.object({ release: ReleaseSchema });
 
 export interface ReleaseApiClient {
-  publishRelease(release: Release): Promise<Release>;
+  publishRelease(release: Release, visualUploads?: VisualUpload[]): Promise<Release>;
 }
 
 export function createReleaseApiClient(config: ReleaseApiClientConfig): ReleaseApiClient {
   const url = `${config.baseUrl.replace(/\/$/, "")}/api/releases`;
   return {
-    async publishRelease(release: Release): Promise<Release> {
+    async publishRelease(release: Release, visualUploads?: VisualUpload[]): Promise<Release> {
+      const body =
+        visualUploads && visualUploads.length > 0
+          ? { release, visualUploads }
+          : { release };
       const res = await config.fetch(url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${config.token}`,
         },
-        body: JSON.stringify({ release }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         throw new ApiError(res.status, `Publish failed with status ${res.status}.`);

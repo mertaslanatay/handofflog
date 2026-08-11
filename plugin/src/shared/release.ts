@@ -5,9 +5,42 @@
  * `handofflog:releases:<scopeId>` (DATA_SCHEMA).
  */
 import { z } from "zod";
-import { ImpactSchema, NodeChangeSchema } from "./schema";
+import { HighlightRegionSchema, ImpactSchema, NodeChangeSchema } from "./schema";
 
 export const RELEASE_SCHEMA_VERSION = 1 as const;
+
+// --- Visual diff persistence (Feature 1 / VD-2) ------------------------------
+
+/** A stored screenshot reference. `pathname` is the object-storage key; the web
+ *  app streams the bytes through an authenticated proxy (Private Blob). */
+export const PersistedScreenshotSchema = z.object({
+  pathname: z.string(),
+  width: z.number(),
+  height: z.number(),
+});
+export type PersistedScreenshot = z.infer<typeof PersistedScreenshotSchema>;
+
+/** Per-screen visual diff stored on a Release (refs only — never base64). */
+export const ReleaseVisualScreenSchema = z.object({
+  screen: z.string(),
+  regions: z.array(HighlightRegionSchema),
+  before: PersistedScreenshotSchema.optional(),
+  after: PersistedScreenshotSchema.optional(),
+});
+export type ReleaseVisualScreen = z.infer<typeof ReleaseVisualScreenSchema>;
+
+/** Wire payload the plugin sends at publish time: raw base64 PNGs the server
+ *  uploads to object storage before persisting the release. Kept separate from
+ *  the stored Release so base64 never lands in clientStorage or the DB. */
+export const VisualUploadSchema = z.object({
+  screen: z.string(),
+  regions: z.array(HighlightRegionSchema),
+  /** base64-encoded PNG bytes (no `data:` prefix); omitted if export failed. */
+  afterBase64: z.string().optional(),
+  width: z.number(),
+  height: z.number(),
+});
+export type VisualUpload = z.infer<typeof VisualUploadSchema>;
 
 export const ReleaseTypeSchema = z.enum([
   "patch",
@@ -39,6 +72,9 @@ export const ReleaseSchema = z.object({
   currentSnapshotId: z.string(),
   /** The included changes (excluded ones already removed). */
   changes: z.array(NodeChangeSchema),
+  /** Persisted per-screen visual diff (refs only). Populated server-side after
+   *  uploading screenshots; absent on plugin-local releases. Additive/optional. */
+  visualDiff: z.array(ReleaseVisualScreenSchema).optional(),
 });
 export type Release = z.infer<typeof ReleaseSchema>;
 

@@ -125,6 +125,15 @@ export type NodeProperties = z.infer<typeof NodePropertiesSchema>;
 
 // --- Snapshot ----------------------------------------------------------------
 
+/** Axis-aligned rectangle in absolute canvas coordinates. */
+export const BoundingBoxSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
+export type BoundingBox = z.infer<typeof BoundingBoxSchema>;
+
 export const NodeSnapshotSchema = z.object({
   trackingId: z.string(),
   nodeId: z.string(),
@@ -141,6 +150,10 @@ export const NodeSnapshotSchema = z.object({
    *  grouping (Feature 4/5). Metadata only; excluded from `hash`. */
   pageName: z.string().optional(),
   screenName: z.string().optional(),
+  /** Absolute canvas bounds (Figma `absoluteBoundingBox`) captured at snapshot
+   *  time. Powers visual-diff highlight overlays (Feature 1 / VD-5). Metadata
+   *  only; excluded from `hash` so moving a node still diffs via x/y in props. */
+  absoluteBoundingBox: BoundingBoxSchema.optional(),
   childTrackingIds: z.array(z.string()),
   properties: NodePropertiesSchema,
   hash: z.string(),
@@ -212,6 +225,44 @@ export const ChangeSetSchema = z.object({
   unchangedCount: z.number(),
 });
 export type ChangeSet = z.infer<typeof ChangeSetSchema>;
+
+// --- Visual diff (Feature 1) -------------------------------------------------
+
+/** One highlighted changed region on a screen, in coordinates relative to that
+ *  screen's top-left origin (so it maps directly onto the exported PNG). */
+export const HighlightRegionSchema = z.object({
+  trackingId: z.string(),
+  kind: ChangeKindSchema,
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+  /** Short label for the overlay, e.g. the node name. */
+  label: z.string(),
+});
+export type HighlightRegion = z.infer<typeof HighlightRegionSchema>;
+
+/** A single exported screen image — either an inline data URI (plugin→UI) or a
+ *  hosted URL (after upload to object storage). Width/height are the PNG pixel
+ *  dimensions, used to scale overlay regions. */
+export const ScreenshotRefSchema = z.object({
+  dataUri: z.string().optional(),
+  url: z.string().optional(),
+  width: z.number(),
+  height: z.number(),
+  /** Export scale (e.g. 2 for @2x) so region coords can be scaled to pixels. */
+  scale: z.number().default(1),
+});
+export type ScreenshotRef = z.infer<typeof ScreenshotRefSchema>;
+
+/** Before/after visual diff for one screen plus its changed regions. */
+export const VisualDiffScreenSchema = z.object({
+  screen: z.string(),
+  before: ScreenshotRefSchema.optional(),
+  after: ScreenshotRefSchema.optional(),
+  regions: z.array(HighlightRegionSchema),
+});
+export type VisualDiffScreen = z.infer<typeof VisualDiffScreenSchema>;
 
 // --- Storage keys ------------------------------------------------------------
 

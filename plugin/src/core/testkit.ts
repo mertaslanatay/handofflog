@@ -7,6 +7,7 @@
  */
 import {
   SNAPSHOT_SCHEMA_VERSION,
+  type BoundingBox,
   type NodeProperties,
   type NodeSnapshot,
   type Snapshot,
@@ -21,6 +22,7 @@ export interface NodeSpec {
   componentKey?: string;
   pageName?: string;
   screenName?: string;
+  absoluteBoundingBox?: BoundingBox;
   properties?: NodeProperties;
   children?: NodeSpec[];
 }
@@ -47,6 +49,9 @@ export function buildSnapshotFromSpec(
     if (spec.componentKey !== undefined) node.componentKey = spec.componentKey;
     if (spec.pageName !== undefined) node.pageName = spec.pageName;
     if (spec.screenName !== undefined) node.screenName = spec.screenName;
+    if (spec.absoluteBoundingBox !== undefined) {
+      node.absoluteBoundingBox = spec.absoluteBoundingBox;
+    }
     nodes[spec.trackingId] = node;
     return spec.trackingId;
   };

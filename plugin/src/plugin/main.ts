@@ -15,8 +15,14 @@ import {
 } from "../shared/messages";
 import type { ExportInput, PublishReleaseInput } from "../shared/messages";
 import { pluginError } from "../shared/error-catalog";
-import type { ChangeSet, Snapshot } from "../shared/schema";
+import type {
+  ChangeSet,
+  ScreenshotRef,
+  Snapshot,
+  VisualDiffScreen,
+} from "../shared/schema";
 import { diffSnapshots } from "../core/diff";
+import { highlightsByScreen, findScreenRoot } from "../core/highlight";
 import { excludeFromChangeSet } from "../core/review";
 import { buildRelease, meaningfulChangeCount } from "../core/release";
 import { createTelemetryEmitter, scopeHash } from "../core/telemetry";
@@ -42,7 +48,7 @@ import {
 import type { ScopeMode } from "../shared/messages";
 import { loadBaseline, saveBaseline, StorageError } from "./storage";
 import { createReleaseApiClient } from "../backend/api-client";
-import type { Release } from "../shared/release";
+import type { Release, VisualUpload } from "../shared/release";
 
 let scanCancelled = false;
 
@@ -410,6 +416,15 @@ async function publishRelease(input: PublishReleaseInput): Promise<void> {
   });
 
   try {
+    // Capture visual-diff screenshots BEFORE clearing scan state below. Only
+    // when a backend is connected (they're uploaded there); scale 1 to keep the
+    // publish request body well under serverless limits.
+    let uploads: VisualUpload[] = [];
+    if (backendToken) {
+      const captured = await captureVisualScreens(1);
+      uploads = visualUploadsFrom(captured.screens);
+    }
+
     const history = await loadReleases(scopeId);
     await saveReleases(scopeId, [release, ...history]);
     // Promote the scanned snapshot to the new baseline (validated + atomic).
@@ -424,7 +439,7 @@ async function publishRelease(input: PublishReleaseInput): Promise<void> {
       meaningfulCount: meaningful,
       maxImpact: release.impact,
     });
-    void pushReleaseToBackend(release);
+    void pushReleaseToBackend(release, uploads);
   } catch (err) {
     postError(toPluginError(err));
   }
@@ -466,7 +481,7 @@ async function setBackendToken(token: string): Promise<void> {
 }
 
 /** Push a published release to the team backend (best-effort; local stays authoritative). */
-async function pushReleaseToBackend(release: Release): Promise<void> {
+async function pushReleaseToBackend(release: Release, uploads: VisualUpload[]): Promise<void> {
   if (!backendToken) return;
   try {
     const client = createReleaseApiClient({
@@ -477,7 +492,7 @@ async function pushReleaseToBackend(release: Release): Promise<void> {
         return { ok: res.ok, status: res.status, json: () => res.json() };
       },
     });
-    await client.publishRelease(release);
+    await client.publishRelease(release, uploads);
     figma.notify("Release ekip sunucusuna gönderildi.");
   } catch {
     figma.notify("Release yerelde kaydedildi; sunucuya gönderilemedi.");
@@ -525,6 +540,96 @@ function toPluginError(err: unknown): PluginError {
   };
 }
 
+// --- Visual diff (Feature 1 / VD-1,VD-3) ------------------------------------
+
+/** PNG export scale for visual-diff screenshots (@2x for crisp overlays). */
+const VISUAL_DIFF_EXPORT_SCALE = 2;
+/** Cap exported screens per request so a huge page can't produce a giant payload. */
+const MAX_VISUAL_DIFF_SCREENS = 12;
+
+/**
+ * Export the "current" image of each changed screen and pair it with the
+ * highlight regions from the last scan. Storage-free: images travel to the UI
+ * inline as data URIs for immediate display. Persisted before/after (object
+ * storage) is a separate, storage-gated step.
+ */
+/**
+ * Export the "current" image of each changed screen (capped) paired with its
+ * highlight regions. Shared by the live UI viewer (scale 2) and publish-time
+ * upload (scale 1). Returns `partial` when screens were dropped by the cap.
+ */
+async function captureVisualScreens(
+  scale: number
+): Promise<{ screens: VisualDiffScreen[]; partial: boolean }> {
+  if (!lastChangeSet || !lastBaseline || !lastCurrent) {
+    return { screens: [], partial: false };
+  }
+  const grouped = highlightsByScreen(lastChangeSet, lastBaseline, lastCurrent);
+  const capped = grouped.slice(0, MAX_VISUAL_DIFF_SCREENS);
+  const partial = grouped.length > capped.length;
+  const current = lastCurrent;
+
+  const screens: VisualDiffScreen[] = [];
+  for (const group of capped) {
+    const rootNode = findScreenRoot(current, group.screen);
+    let after: ScreenshotRef | undefined;
+    if (rootNode) {
+      try {
+        const fnode = await figma.getNodeByIdAsync(rootNode.nodeId);
+        if (fnode && "exportAsync" in fnode) {
+          const bytes = await (fnode as SceneNode).exportAsync({
+            format: "PNG",
+            constraint: { type: "SCALE", value: scale },
+          });
+          const box = rootNode.absoluteBoundingBox;
+          after = {
+            dataUri: `data:image/png;base64,${figma.base64Encode(bytes)}`,
+            width: box ? box.width : 0,
+            height: box ? box.height : 0,
+            scale,
+          };
+        }
+      } catch {
+        // Export can fail (e.g. empty/locked node) — keep regions, drop image.
+      }
+    }
+    const screen: VisualDiffScreen = { screen: group.screen, regions: group.regions };
+    if (after) screen.after = after;
+    screens.push(screen);
+  }
+  return { screens, partial };
+}
+
+async function buildVisualDiff(): Promise<void> {
+  if (!lastChangeSet || !lastBaseline || !lastCurrent) {
+    return postError({
+      code: "BASELINE_NOT_FOUND",
+      message: "Görsel diff için önce bir tarama çalıştır.",
+      recoverable: true,
+    });
+  }
+  const { screens, partial } = await captureVisualScreens(VISUAL_DIFF_EXPORT_SCALE);
+  post({ type: "VISUAL_DIFF", payload: { screens, partial } });
+}
+
+/** Strip the data-URI prefix → raw base64, dropping screens with no image. */
+function visualUploadsFrom(screens: VisualDiffScreen[]): VisualUpload[] {
+  return screens.map((s) => {
+    const upload: VisualUpload = {
+      screen: s.screen,
+      regions: s.regions,
+      width: s.after?.width ?? 0,
+      height: s.after?.height ?? 0,
+    };
+    const uri = s.after?.dataUri;
+    if (uri) {
+      const comma = uri.indexOf(",");
+      upload.afterBase64 = comma >= 0 ? uri.slice(comma + 1) : uri;
+    }
+    return upload;
+  });
+}
+
 // --- Wiring -----------------------------------------------------------------
 
 figma.on("selectionchange", () => {
@@ -554,6 +659,9 @@ figma.ui.onmessage = (raw: unknown) => {
       break;
     case "CANCEL_SCAN":
       scanCancelled = true;
+      break;
+    case "GET_VISUAL_DIFF":
+      void buildVisualDiff();
       break;
     case "SELECT_NODE":
       void selectNode(message.payload.nodeId);

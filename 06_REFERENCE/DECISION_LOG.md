@@ -306,6 +306,15 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **Alternatifler:** (a) invisible alt-ağaçları atlamak — diff semantiğini bozar, reddedildi; (b) page modunda derinlik sınırı — derin metin değişikliklerini kaçırır, reddedildi.
 **Sonuç:** `tracking.ts` + `snapshot.ts` + `main.ts` güncellendi; `tracking.test.ts` (persist=false → 0 yazma) eklendi. tsc + 144 test + build yeşil.
 
+## DEC-033 — Görsel diff depolaması: Private Vercel Blob
+
+**Durum:** Kabul edildi (ürün sahibi: Private)
+**Karar:** Publish anında plugin, değişen ekranların "current" PNG'lerini `exportAsync @1x` ile yakalar, base64 olarak release payload'ına (`visualUploads`) ekler. Web `/api/releases` (token akışı) bunları **Private Vercel Blob**'a yükler (`put access:'private'`, `addRandomSuffix:false`, pathname `screenshots/<releaseId>/<i>-<screen>.png`) ve release JSON'una `visualDiff` **ref'leri** (pathname + genişlik/yükseklik + highlight bölgeleri) olarak yazar. Base64 asla DB'ye/clientStorage'a girmez. Okuma, kimlik-doğrulamalı proxy (`/api/screenshots`) üzerinden `get(pathname,{access:'private'})` ile stream edilir; proxy, pathname'deki releaseId'den workspace'i bulup **üyelik kontrolü** yapar (tenant izolasyonu).
+**Gerekçe:** Ekran görüntüleri gizli tasarım IP'si → Private. Release JSON olarak saklandığından prisma migration gerekmez. Private Blob GA (2026-06-30); Vercel'de OIDC ile otomatik auth, yerelde `BLOB_READ_WRITE_TOKEN`.
+**Alternatifler:** Public Blob (basit ama URL sızabilir) — reddedildi; Figma clientStorage (kota ~5MB) — reddedildi.
+**Sınır:** Şu an yalnızca "current" (after) persist ediliyor; gerçek before/after yan-yana için baseline-zamanı "before" yakalama sonraki adım. Publish body limiti için @1x + ekran cap (12).
+**Sonuç:** Plugin/shared/backend: `absoluteBoundingBox`, `highlightsByScreen`, `VisualUpload`, `assembleVisualScreens` (testli, 150 test). Web: `server/blob.ts`, `/api/screenshots`, releases route upload, release detay viewer (deploy'da doğrulanacak).
+
 **Durum:** Önerildi / Kabul edildi / Değiştirildi  
 **Karar:**  
 **Gerekçe:**  
