@@ -205,3 +205,15 @@ export function areaChange(
   const label = (afterRoot ?? beforeRoot)?.name;
   return { nodeId, label, changed, nodeCount: aMap.size || bMap.size, diff };
 }
+
+/**
+ * Accepts a Figma node id in any form the user is likely to paste — a full file
+ * URL, the `node-id=917-19497` query value, the dash form `917-19497`, or the API
+ * form `917:19497` — and returns the API form (`917:19497`).
+ */
+export function normalizeNodeId(input: string): string {
+  let s = input.trim();
+  const m = s.match(/node-id=([^&\s]+)/i);
+  if (m && m[1]) s = decodeURIComponent(m[1]);
+  return s.replace(/-/g, ":");
+}

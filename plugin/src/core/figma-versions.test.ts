@@ -7,6 +7,7 @@ import {
   normalizeFigmaNode,
   flattenFigmaTree,
   areaChange,
+  normalizeNodeId,
   type FigmaNode,
   type FigmaVersion,
 } from "./figma-versions";
@@ -119,5 +120,19 @@ describe("figma-versions: diff + areaChange", () => {
     const res = areaChange("root", null, tree());
     expect(res.changed).toBe(true);
     expect(res.diff.added).toHaveLength(3);
+  });
+});
+
+describe("figma-versions: normalizeNodeId", () => {
+  it("extracts + colonizes from a full Figma URL", () => {
+    expect(
+      normalizeNodeId("https://www.figma.com/design/K/Name?node-id=917-19497&t=mIK6-1")
+    ).toBe("917:19497");
+  });
+  it("converts the dash form", () => {
+    expect(normalizeNodeId("917-19497")).toBe("917:19497");
+  });
+  it("keeps the colon form and trims whitespace", () => {
+    expect(normalizeNodeId("  917:19497 ")).toBe("917:19497");
   });
 });

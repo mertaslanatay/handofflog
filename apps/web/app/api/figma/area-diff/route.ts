@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/server/session";
 import { readFigmaToken } from "@/server/figma-token";
 import { fetchAllVersions, fetchNodeAtVersion } from "@/server/figma-api";
-import { areaChange } from "@core/figma-versions";
+import { areaChange, normalizeNodeId } from "@core/figma-versions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const fileKey = body.fileKey;
-  const nodeIds = (body.nodeIds ?? []).map((s) => s.trim()).filter(Boolean);
+  const nodeIds = (body.nodeIds ?? []).map((s) => normalizeNodeId(s)).filter(Boolean);
   if (!fileKey || nodeIds.length === 0) {
     return NextResponse.json({ error: "missing_params" }, { status: 400 });
   }

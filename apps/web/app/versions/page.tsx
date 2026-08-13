@@ -172,7 +172,7 @@ export default function VersionsPage() {
         <section style={{ marginTop: 24, borderTop: "1px solid #eee", paddingTop: 16 }}>
           <h2 style={{ fontSize: 18 }}>Alan değişikliği (son 2 versiyon)</h2>
           <p style={{ color: "#666", fontSize: 13 }}>
-            Frame&apos;e sağ tık → Copy link → URL&apos;deki <code>node-id=1-23</code> → <code>1:23</code>. Virgülle ayır.
+            Frame&apos;e sağ tık → Copy link → linki ya da node-id değerini buraya yapıştır (URL, <code>917-19497</code> ya da <code>917:19497</code> — hepsi olur). Virgülle ayır.
           </p>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
