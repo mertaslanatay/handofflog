@@ -6,68 +6,105 @@ interface FigmaVersion {
   id: string;
   created_at: string;
   label: string | null;
-  user: { handle?: string; email?: string };
+  user?: { handle?: string; email?: string };
 }
-interface Summary {
-  total: number;
-  named: number;
-  autosave: number;
-}
-interface ModifiedNode {
+interface Page {
   id: string;
-  name?: string;
-  type?: string;
-  fields: string[];
+  name: string;
 }
-interface NodeRef {
+interface ChangeLine {
+  kind: "added" | "removed" | "modified";
+  node: string;
+  nodeType?: string;
+  text: string;
+}
+type ScreenStatus = "added" | "removed" | "modified" | "unchanged";
+interface ScreenReport {
+  screenId: string;
+  name: string;
+  status: ScreenStatus;
+  changeCount: number;
+  changes: ChangeLine[];
+}
+interface PageTotals {
+  screens: number;
+  added: number;
+  removed: number;
+  modified: number;
+  unchanged: number;
+  changes: number;
+}
+interface VersionInfo {
   id: string;
-  name?: string;
-  type?: string;
+  created_at?: string;
+  label?: string | null;
 }
-interface AreaResult {
-  nodeId: string;
-  label?: string;
-  changed: boolean;
-  nodeCount: number;
-  diff: { added: NodeRef[]; removed: NodeRef[]; modified: ModifiedNode[] };
+interface ReportResponse {
+  from: VersionInfo;
+  to: VersionInfo;
+  report: { totals: PageTotals; screens: ScreenReport[] };
 }
 
 const accent = "#005a9e";
 
+function versionLabel(v: FigmaVersion): string {
+  const d = new Date(v.created_at).toLocaleString();
+  return `${d} ${v.label ? "★ " + v.label : "· autosave"}`;
+}
+
 export default function VersionsPage() {
   const [fileKey, setFileKey] = useState("");
-  const [nodeIds, setNodeIds] = useState("");
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [versions, setVersions] = useState<FigmaVersion[]>([]);
-  const [areas, setAreas] = useState<AreaResult[] | null>(null);
+  const [pages, setPages] = useState<Page[]>([]);
+  const [pageId, setPageId] = useState("");
+  const [fromV, setFromV] = useState("");
+  const [toV, setToV] = useState("");
+  const [report, setReport] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [needConnect, setNeedConnect] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadVersions() {
+  async function loadFileMeta() {
     const key = fileKey.trim();
     if (!key) return;
     setLoading(true);
     setError(null);
     setNeedConnect(false);
-    setAreas(null);
+    setReport(null);
     try {
-      const res = await fetch(`/api/figma/versions?fileKey=${encodeURIComponent(key)}`);
-      if (res.status === 401) {
+      const [vr, pr] = await Promise.all([
+        fetch(`/api/figma/versions?fileKey=${encodeURIComponent(key)}`),
+        fetch(`/api/figma/pages?fileKey=${encodeURIComponent(key)}`),
+      ]);
+      if (vr.status === 401) {
         window.location.href = "/";
         return;
       }
-      if (res.status === 428) {
+      if (vr.status === 428 || pr.status === 428) {
         setNeedConnect(true);
         return;
       }
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail || data.error || "Beklenmeyen hata");
+      const vd = await vr.json();
+      const pd = await pr.json();
+      if (!vr.ok) {
+        setError(vd.detail || vd.error || "Versiyonlar alınamadı");
         return;
       }
-      setSummary(data.summary as Summary);
-      setVersions(data.versions as FigmaVersion[]);
+      const vs: FigmaVersion[] = vd.versions ?? [];
+      const ps: Page[] = pd.pages ?? [];
+      setVersions(vs);
+      setPages(ps);
+
+      const to = vs[0]?.id ?? "";
+      const named = vs.slice(1).find((v) => v.label);
+      const from = named?.id ?? vs[1]?.id ?? "";
+      const handoff = ps.find((p) => /handoff/i.test(p.name)) ?? ps[0];
+      setToV(to);
+      setFromV(from);
+      setPageId(handoff?.id ?? "");
+
+      if (handoff && from && to) await runReport(key, handoff.id, from, to);
     } catch {
       setError("İstek başarısız oldu.");
     } finally {
@@ -75,17 +112,15 @@ export default function VersionsPage() {
     }
   }
 
-  async function checkAreas() {
-    const key = fileKey.trim();
-    const ids = nodeIds.split(",").map((s) => s.trim()).filter(Boolean);
-    if (!key || ids.length === 0) return;
-    setLoading(true);
+  async function runReport(key: string, page: string, from: string, to: string) {
+    if (!page || !from || !to) return;
+    setReporting(true);
     setError(null);
     try {
-      const res = await fetch("/api/figma/area-diff", {
+      const res = await fetch("/api/figma/page-report", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fileKey: key, nodeIds: ids }),
+        body: JSON.stringify({ fileKey: key, pageId: page, from, to }),
       });
       if (res.status === 428) {
         setNeedConnect(true);
@@ -94,16 +129,18 @@ export default function VersionsPage() {
       const data = await res.json();
       if (!res.ok) {
         if (data.error === "need_two_versions") setError("Bu dosyada karşılaştırmak için en az 2 versiyon yok.");
-        else setError(data.detail || data.error || "Beklenmeyen hata");
+        else setError(data.detail || data.error || "Rapor oluşturulamadı");
         return;
       }
-      setAreas(data.results as AreaResult[]);
+      setReport(data as ReportResponse);
     } catch {
-      setError("İstek başarısız oldu.");
+      setError("Rapor isteği başarısız oldu.");
     } finally {
-      setLoading(false);
+      setReporting(false);
     }
   }
+
+  const t = report?.report.totals;
 
   return (
     <main>
@@ -112,16 +149,17 @@ export default function VersionsPage() {
           ← Releases
         </a>
       </p>
-      <h1>Versiyon geçmişi</h1>
-      <p style={{ color: "#666", maxWidth: 640 }}>
-        Figma&apos;nın kendi version history&apos;sinden okur — dosyayı taramaz, kilitlemez. Dosya anahtarı
-        URL&apos;deki <code>/design/&lt;FILE_KEY&gt;/</code> kısmıdır.
+      <h1>Handoff değişiklikleri</h1>
+      <p style={{ color: "#666", maxWidth: 680 }}>
+        Bir handoff sayfası (Figma page) seç; o sayfadaki her ekranın iki versiyon arasında ne değiştiğini
+        otomatik gösterir. Figma&apos;nın kendi version history&apos;sinden okur — dosyayı taramaz, kilitlemez.
+        Dosya anahtarı URL&apos;deki <code>/design/&lt;FILE_KEY&gt;/</code> kısmıdır.
       </p>
 
       {needConnect ? (
         <div style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 16, margin: "12px 0" }}>
           <p style={{ marginTop: 0 }}>
-            Figma dosya erişimi bağlı değil. Yeni izinlerle (files:read + file_versions:read) yeniden giriş yap.
+            Figma dosya erişimi bağlı değil. Yeni izinlerle yeniden giriş yap.
           </p>
           <a
             href="/api/auth/figma"
@@ -140,88 +178,130 @@ export default function VersionsPage() {
           style={{ flex: 1, padding: 8, border: "1px solid #ccc", borderRadius: 6, fontFamily: "monospace" }}
         />
         <button
-          onClick={loadVersions}
+          onClick={loadFileMeta}
           disabled={loading}
           style={{ background: accent, color: "#fff", border: 0, borderRadius: 6, padding: "9px 16px" }}
         >
-          {loading ? "…" : "Versiyonları getir"}
+          {loading ? "…" : "Getir"}
         </button>
       </div>
 
       {error ? <p style={{ color: "#b91c1c" }}>{error}</p> : null}
 
-      {summary ? (
-        <p>
-          <strong>{summary.total}</strong> versiyon (isimli: {summary.named}, autosave: {summary.autosave})
-        </p>
+      {pages.length > 0 ? (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end", margin: "8px 0 4px" }}>
+          <label style={{ fontSize: 13 }}>
+            <div style={{ color: "#666", marginBottom: 2 }}>Handoff sayfası (Figma page)</div>
+            <select
+              value={pageId}
+              onChange={(e) => {
+                setPageId(e.target.value);
+                void runReport(fileKey.trim(), e.target.value, fromV, toV);
+              }}
+              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", minWidth: 220 }}
+            >
+              {pages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ fontSize: 13 }}>
+            <div style={{ color: "#666", marginBottom: 2 }}>Baz al (önce)</div>
+            <select
+              value={fromV}
+              onChange={(e) => {
+                setFromV(e.target.value);
+                void runReport(fileKey.trim(), pageId, e.target.value, toV);
+              }}
+              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", maxWidth: 320 }}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {versionLabel(v)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ fontSize: 13 }}>
+            <div style={{ color: "#666", marginBottom: 2 }}>Karşılaştır (sonra)</div>
+            <select
+              value={toV}
+              onChange={(e) => {
+                setToV(e.target.value);
+                void runReport(fileKey.trim(), pageId, fromV, e.target.value);
+              }}
+              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", maxWidth: 320 }}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {versionLabel(v)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
+
+      {reporting ? <p style={{ color: "#666" }}>Rapor oluşturuluyor…</p> : null}
+
+      {t ? (
+        <>
+          <p style={{ margin: "14px 0 8px" }}>
+            <strong>{t.screens}</strong> ekran · 🟣 {t.modified} değişmiş · 🆕 {t.added} eklenmiş · 🗑️ {t.removed} silinmiş ·
+            ✅ {t.unchanged} aynı · <strong>{t.changes}</strong> toplam değişiklik
+          </p>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {report!.report.screens.map((s) => (
+              <li
+                key={s.screenId}
+                style={{
+                  border: "1px solid #e5e5e5",
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 8,
+                  background: s.status === "unchanged" ? "#fafafa" : "#fff",
+                }}
+              >
+                {s.status === "modified" ? (
+                  <>
+                    <strong style={{ color: "#7c3aed" }}>🟣 {s.name}</strong>{" "}
+                    <span style={{ color: "#666" }}>— {s.changeCount} değişiklik</span>
+                    <ul style={{ fontSize: 13, color: "#333", marginTop: 6 }}>
+                      {s.changes.slice(0, 30).map((c, i) => (
+                        <li key={i}>{c.text}</li>
+                      ))}
+                      {s.changes.length > 30 ? <li style={{ color: "#999" }}>… +{s.changes.length - 30} daha</li> : null}
+                    </ul>
+                  </>
+                ) : s.status === "added" ? (
+                  <span style={{ color: "#16a34a" }}>🆕 {s.name} — yeni ekran</span>
+                ) : s.status === "removed" ? (
+                  <span style={{ color: "#b91c1c" }}>🗑️ {s.name} — silinmiş ekran</span>
+                ) : (
+                  <span style={{ color: "#999" }}>✅ {s.name} — değişmemiş</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
 
       {versions.length > 0 ? (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {versions.slice(0, 30).map((v) => (
-            <li key={v.id} style={{ borderBottom: "1px solid #eee", padding: "6px 0", fontSize: 14 }}>
-              <span style={{ color: "#666" }}>{new Date(v.created_at).toLocaleString()}</span>{" "}
-              · {v.user?.handle || v.user?.email || "—"}{" "}
-              {v.label ? <strong>★ {v.label}</strong> : <span style={{ color: "#999" }}>· autosave</span>}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {versions.length >= 2 ? (
-        <section style={{ marginTop: 24, borderTop: "1px solid #eee", paddingTop: 16 }}>
-          <h2 style={{ fontSize: 18 }}>Alan değişikliği (son 2 versiyon)</h2>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            Frame&apos;e sağ tık → Copy link → linki ya da node-id değerini buraya yapıştır (URL, <code>917-19497</code> ya da <code>917:19497</code> — hepsi olur). Virgülle ayır.
-          </p>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              value={nodeIds}
-              onChange={(e) => setNodeIds(e.target.value)}
-              placeholder="1:23, 4:56"
-              style={{ flex: 1, padding: 8, border: "1px solid #ccc", borderRadius: 6, fontFamily: "monospace" }}
-            />
-            <button
-              onClick={checkAreas}
-              disabled={loading}
-              style={{ border: `1px solid ${accent}`, color: accent, background: "transparent", borderRadius: 6, padding: "9px 16px" }}
-            >
-              {loading ? "…" : "Değişiklikleri kontrol et"}
-            </button>
-          </div>
-
-          {areas ? (
-            <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
-              {areas.map((a) => (
-                <li key={a.nodeId} style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                  {a.changed ? (
-                    <>
-                      <strong style={{ color: "#7c3aed" }}>🟣 {a.label || a.nodeId} — DEĞİŞMİŞ</strong>{" "}
-                      <span style={{ color: "#666" }}>
-                        (+{a.diff.added.length} / -{a.diff.removed.length} / ~{a.diff.modified.length})
-                      </span>
-                      <ul style={{ fontSize: 13, color: "#444" }}>
-                        {a.diff.modified.slice(0, 8).map((m) => (
-                          <li key={m.id}>
-                            ~ {m.type} “{m.name}”: {m.fields.join(", ")}
-                          </li>
-                        ))}
-                        {a.diff.added.slice(0, 5).map((n) => (
-                          <li key={n.id}>+ {n.type} “{n.name}”</li>
-                        ))}
-                        {a.diff.removed.slice(0, 5).map((n) => (
-                          <li key={n.id}>- {n.type} “{n.name}”</li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <span style={{ color: "#16a34a" }}>✅ {a.label || a.nodeId} — değişmemiş ({a.nodeCount} node)</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </section>
+        <details style={{ marginTop: 20 }}>
+          <summary style={{ cursor: "pointer", color: "#666" }}>Ham versiyon geçmişi ({versions.length})</summary>
+          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
+            {versions.slice(0, 40).map((v) => (
+              <li key={v.id} style={{ borderBottom: "1px solid #eee", padding: "5px 0", fontSize: 13 }}>
+                <span style={{ color: "#666" }}>{new Date(v.created_at).toLocaleString()}</span> ·{" "}
+                {v.user?.handle || v.user?.email || "—"} {v.label ? <strong>★ {v.label}</strong> : <span style={{ color: "#999" }}>· autosave</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </main>
   );

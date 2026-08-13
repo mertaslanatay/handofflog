@@ -8,6 +8,9 @@ import {
   flattenFigmaTree,
   areaChange,
   normalizeNodeId,
+  filePath,
+  parsePagesResponse,
+  buildPageReport,
   type FigmaNode,
   type FigmaVersion,
 } from "./figma-versions";
@@ -134,5 +137,60 @@ describe("figma-versions: normalizeNodeId", () => {
   });
   it("keeps the colon form and trims whitespace", () => {
     expect(normalizeNodeId("  917:19497 ")).toBe("917:19497");
+  });
+});
+
+const canvas = (children: FigmaNode[]): FigmaNode => ({ id: "PAGE", name: "Handoff", type: "CANVAS", children });
+
+describe("figma-versions: buildPageReport", () => {
+  const screenBefore: FigmaNode = {
+    id: "s1", name: "Abonelik / Ödeme Yöntemi", type: "FRAME",
+    children: [
+      { id: "btn", name: "Buton", type: "FRAME", absoluteBoundingBox: { width: 320, height: 48 } },
+      { id: "ttl", name: "Başlık", type: "TEXT", characters: "Devam" },
+    ],
+  };
+  const screenAfter: FigmaNode = {
+    id: "s1", name: "Abonelik / Ödeme Yöntemi", type: "FRAME",
+    children: [
+      { id: "btn", name: "Buton", type: "FRAME", absoluteBoundingBox: { width: 360, height: 48 } },
+      { id: "ttl", name: "Başlık", type: "TEXT", characters: "Öde" },
+    ],
+  };
+
+  it("counts the exact changes in a modified screen with before→after text", () => {
+    const rep = buildPageReport(canvas([screenBefore]), canvas([screenAfter]));
+    const s = rep.screens.find((x) => x.screenId === "s1")!;
+    expect(s.status).toBe("modified");
+    expect(s.changeCount).toBe(2);
+    expect(s.changes.some((c) => c.text.includes("genişlik: 320 → 360"))).toBe(true);
+    expect(s.changes.some((c) => c.text.includes("metin: “Devam” → “Öde”"))).toBe(true);
+  });
+
+  it("flags added and removed screens at page level", () => {
+    const rep = buildPageReport(
+      canvas([screenBefore, { id: "old", name: "Eski Ekran", type: "FRAME" }]),
+      canvas([screenAfter, { id: "new", name: "Yeni Ekran", type: "FRAME" }])
+    );
+    expect(rep.totals.added).toBe(1);
+    expect(rep.totals.removed).toBe(1);
+    expect(rep.screens.find((s) => s.screenId === "new")?.status).toBe("added");
+    expect(rep.screens.find((s) => s.screenId === "old")?.status).toBe("removed");
+  });
+
+  it("marks an untouched screen unchanged and sorts changed first", () => {
+    const rep = buildPageReport(canvas([screenBefore]), canvas([screenBefore]));
+    expect(rep.screens[0]?.status).toBe("unchanged");
+    expect(rep.totals.changes).toBe(0);
+  });
+});
+
+describe("figma-versions: pages", () => {
+  it("parses the page list from a depth=1 file response", () => {
+    const pages = parsePagesResponse({ document: { children: [{ id: "0:1", name: "Cover" }, { id: "2:3", name: "Handoff" }] } });
+    expect(pages).toEqual([{ id: "0:1", name: "Cover" }, { id: "2:3", name: "Handoff" }]);
+  });
+  it("builds a file path with depth", () => {
+    expect(filePath("K", { depth: 1 })).toBe("/v1/files/K?depth=1");
   });
 });

@@ -8,8 +8,11 @@ import {
   versionsPath,
   nodesPath,
   parseVersionsResponse,
+  filePath,
+  parsePagesResponse,
   type FigmaVersion,
   type FigmaNode,
+  type PageInfo,
 } from "@core/figma-versions";
 
 const FIGMA_API = "https://api.figma.com";
@@ -52,4 +55,9 @@ export async function fetchNodeAtVersion(
     nodes?: Record<string, { document?: FigmaNode } | undefined>;
   };
   return json.nodes?.[nodeId]?.document ?? null;
+}
+
+export async function fetchPages(fileKey: string, token: string): Promise<PageInfo[]> {
+  const json = await figmaGet(filePath(fileKey, { depth: 1 }), token);
+  return parsePagesResponse(json);
 }

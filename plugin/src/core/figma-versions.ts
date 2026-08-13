@@ -217,3 +217,165 @@ export function normalizeNodeId(input: string): string {
   if (m && m[1]) s = decodeURIComponent(m[1]);
   return s.replace(/-/g, ":");
 }
+
+// --- page report (per-screen, human-readable change lines) ---------------
+
+export interface PageInfo {
+  id: string;
+  name: string;
+}
+
+/** Parse a depth=1 GET file response into the list of Figma pages (canvases). */
+export function parsePagesResponse(json: unknown): PageInfo[] {
+  const doc = (json as { document?: { children?: { id?: string; name?: string }[] } })?.document;
+  const kids = doc?.children ?? [];
+  const out: PageInfo[] = [];
+  for (const c of kids) if (c.id) out.push({ id: c.id, name: c.name ?? c.id });
+  return out;
+}
+
+export function filePath(fileKey: string, opts?: { depth?: number; version?: string }): string {
+  const q = new URLSearchParams();
+  if (opts?.depth != null) q.set("depth", String(opts.depth));
+  if (opts?.version) q.set("version", opts.version);
+  const qs = q.toString();
+  return `/v1/files/${encodeURIComponent(fileKey)}${qs ? "?" + qs : ""}`;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "isim",
+  type: "tip",
+  w: "genişlik",
+  h: "yükseklik",
+  visible: "görünürlük",
+  opacity: "opaklık",
+  characters: "metin",
+  fontSize: "yazı boyutu",
+  cornerRadius: "köşe yarıçapı",
+  layoutMode: "yerleşim modu",
+  itemSpacing: "öğe aralığı",
+  padding: "iç boşluk",
+  fills: "dolgu/renk",
+  strokes: "çizgi/kenar",
+  childCount: "alt öğe sayısı",
+};
+
+function truncate(s: string, n = 40): string {
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+
+function fmtValue(field: string, value: unknown): string {
+  if (value === undefined || value === null) return "—";
+  if (field === "characters" && typeof value === "string") return `“${truncate(value)}”`;
+  if (field === "visible") return value ? "görünür" : "gizli";
+  if (field === "padding" && Array.isArray(value)) return value.map((v) => (v == null ? "—" : String(v))).join("/");
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+function fieldChangeText(field: string, before: unknown, after: unknown): string {
+  const label = FIELD_LABELS[field] ?? field;
+  if (field === "fills" || field === "strokes") return `${label} değişti`;
+  return `${label}: ${fmtValue(field, before)} → ${fmtValue(field, after)}`;
+}
+
+export interface ChangeLine {
+  kind: "added" | "removed" | "modified";
+  node: string;
+  nodeType?: string;
+  text: string;
+}
+
+/** Human-readable change lines for one screen (area) between two versions. */
+export function screenChangeLines(
+  beforeRoot: FigmaNode | null,
+  afterRoot: FigmaNode | null
+): ChangeLine[] {
+  const before = flattenFigmaTree(beforeRoot);
+  const after = flattenFigmaTree(afterRoot);
+  const lines: ChangeLine[] = [];
+  for (const [id, a] of after) {
+    const b = before.get(id);
+    if (!b) {
+      lines.push({ kind: "added", node: a.name ?? id, nodeType: a.type, text: `yeni: ${a.type ?? "node"} “${a.name ?? id}”` });
+      continue;
+    }
+    for (const key of Object.keys(a) as (keyof NormalizedNode)[]) {
+      if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) {
+        lines.push({
+          kind: "modified",
+          node: a.name ?? id,
+          nodeType: a.type,
+          text: `${a.name ?? id}: ${fieldChangeText(String(key), b[key], a[key])}`,
+        });
+      }
+    }
+  }
+  for (const [id, b] of before) {
+    if (!after.has(id)) lines.push({ kind: "removed", node: b.name ?? id, nodeType: b.type, text: `silinen: ${b.type ?? "node"} “${b.name ?? id}”` });
+  }
+  return lines;
+}
+
+export type ScreenStatus = "added" | "removed" | "modified" | "unchanged";
+export interface ScreenReport {
+  screenId: string;
+  name: string;
+  status: ScreenStatus;
+  changeCount: number;
+  changes: ChangeLine[];
+}
+export interface PageTotals {
+  screens: number;
+  added: number;
+  removed: number;
+  modified: number;
+  unchanged: number;
+  changes: number;
+}
+export interface PageReport {
+  totals: PageTotals;
+  screens: ScreenReport[];
+}
+
+/** Top-level frames (screens) of a Figma page canvas, keyed by stable node id. */
+function screensOf(canvas: FigmaNode | null): Map<string, FigmaNode> {
+  const m = new Map<string, FigmaNode>();
+  for (const child of canvas?.children ?? []) if (child.id) m.set(child.id, child);
+  return m;
+}
+
+/** Per-screen change report for a whole handoff page between two versions. */
+export function buildPageReport(
+  beforeCanvas: FigmaNode | null,
+  afterCanvas: FigmaNode | null
+): PageReport {
+  const before = screensOf(beforeCanvas);
+  const after = screensOf(afterCanvas);
+  const screens: ScreenReport[] = [];
+
+  for (const [id, aNode] of after) {
+    const bNode = before.get(id);
+    if (!bNode) {
+      screens.push({ screenId: id, name: aNode.name ?? id, status: "added", changeCount: 1, changes: [{ kind: "added", node: aNode.name ?? id, nodeType: aNode.type, text: "yeni ekran eklendi" }] });
+      continue;
+    }
+    const lines = screenChangeLines(bNode, aNode);
+    screens.push({ screenId: id, name: aNode.name ?? id, status: lines.length ? "modified" : "unchanged", changeCount: lines.length, changes: lines });
+  }
+  for (const [id, bNode] of before) {
+    if (!after.has(id)) screens.push({ screenId: id, name: bNode.name ?? id, status: "removed", changeCount: 1, changes: [{ kind: "removed", node: bNode.name ?? id, nodeType: bNode.type, text: "ekran silindi" }] });
+  }
+
+  const totals: PageTotals = {
+    screens: screens.length,
+    added: screens.filter((s) => s.status === "added").length,
+    removed: screens.filter((s) => s.status === "removed").length,
+    modified: screens.filter((s) => s.status === "modified").length,
+    unchanged: screens.filter((s) => s.status === "unchanged").length,
+    changes: screens.reduce((n, s) => n + s.changeCount, 0),
+  };
+  const rank = (s: ScreenReport): number => (s.status === "unchanged" ? 1 : 0);
+  screens.sort((a, b) => rank(a) - rank(b));
+  return { totals, screens };
+}
