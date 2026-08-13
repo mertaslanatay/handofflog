@@ -329,8 +329,8 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **DEC-001 ile ilişki:** DEC-001 "Version History yerine kendi snapshot'ımız" diyordu; bu karar onu **bilinçli olarak tersine çevirir** (performans + basitlik). Plugin'in snapshot/diff motoru korunur ama birincil kaynak değildir; ileride plugin'deki ağır tarama bu REST akışıyla değiştirilebilir.
 **Uygulama (bu turda):**
 - `plugin/src/core/figma-versions.ts` — saf, Figma-bağımsız (path builder, versions parse/summarize, node normalize/flatten, area diff). `figma-versions.test.ts` ile 13 test (toplam 164, `npm run verify` yeşil).
-- Web OAuth login scope'una `files:read` + `file_versions:read` eklendi (`LOGIN_SCOPES`); `DEFAULT_SCOPES` değişmedi (mevcut test yeşil). Callback, access token'ı **AES-GCM şifreli** httpOnly cookie'de saklar (`figma-token.ts`, `crypto.ts` + `ENCRYPTION_KEY_BASE64`).
+- Web OAuth login scope'una `file_content:read` + `file_versions:read` eklendi (`LOGIN_SCOPES`); `DEFAULT_SCOPES` değişmedi (mevcut test yeşil). Callback, access token'ı **AES-GCM şifreli** httpOnly cookie'de saklar (`figma-token.ts`, `crypto.ts` + `ENCRYPTION_KEY_BASE64`).
 - Rotalar: `GET /api/figma/versions`, `POST /api/figma/area-diff` (+ `figma-api.ts` fetch katmanı). UI: `/versions` sayfası (+ `/releases`'ten link).
 - CLI eşdeğeri: `scripts/figma-versions.mjs` (PAT ile hızlı kontrol).
-**Sağlayıcı adımı (kullanıcı):** Figma app OAuth ayarlarında `files:read` ve `file_versions:read` scope'ları **açılmalı** (yoksa authorize "Invalid scopes for app" verir), sonra bir kez yeniden giriş yapılmalı. Ücretsiz takımda geçmiş 30 günle sınırlı; Pro/Org'da tam geçmiş.
+**Sağlayıcı adımı (kullanıcı):** Figma app OAuth ayarlarında `file_content:read` ve `file_versions:read` scope'ları **açılmalı** (yoksa authorize "Invalid scopes for app" verir), sonra bir kez yeniden giriş yapılmalı. Ücretsiz takımda geçmiş 30 günle sınırlı; Pro/Org'da tam geçmiş.
 **Sonuç:** Versiyon listeleme + alan-diff uçtan uca kod olarak hazır ve testli; canlı doğrulama scope açılışı + yeniden giriş + gerçek dosya ile yapılacak.
