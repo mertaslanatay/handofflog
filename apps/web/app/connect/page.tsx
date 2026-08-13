@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
 
 export default function ConnectPage() {
   const [token, setToken] = useState<string | null>(null);
@@ -23,31 +24,33 @@ export default function ConnectPage() {
   }
 
   return (
-    <main>
-      <h1>Figma plugin'ini bağla</h1>
-      <p>
-        Bir bağlantı token'ı oluştur ve Figma'daki Handofflog plugin'inde{" "}
-        <em>Ekip sunucusu → bağlan</em> alanına yapıştır. Token yalnızca bir kez gösterilir.
-      </p>
-      <button
-        onClick={mint}
-        disabled={loading}
-        style={{ background: "#005a9e", color: "#fff", border: 0, borderRadius: 6, padding: "10px 16px" }}
-      >
-        {loading ? "Oluşturuluyor…" : "Bağlantı token'ı oluştur"}
-      </button>
-      {error ? <p style={{ color: "#b91c1c" }}>{error}</p> : null}
-      {token ? (
-        <div style={{ marginTop: 16 }}>
-          <p>Token (kopyala, güvenli sakla):</p>
-          <code style={{ display: "block", padding: 12, background: "#f5f5f5", borderRadius: 6, wordBreak: "break-all" }}>
-            {token}
-          </code>
-        </div>
-      ) : null}
+    <>
+      <AppHeader />
+      <main className="container">
+        <h1>Figma plugin&apos;ini bağla</h1>
+        <p className="subtitle">
+          Bir bağlantı token&apos;ı oluştur ve Figma&apos;daki Handofflog plugin&apos;inde{" "}
+          <em>Ekip sunucusu → bağlan</em> alanına yapıştır. Token yalnızca bir kez gösterilir.
+        </p>
 
-      <RevokeTokens />
-    </main>
+        <div className="card">
+          <button onClick={mint} disabled={loading} className="btn btn-primary">
+            {loading ? "Oluşturuluyor…" : "Bağlantı token'ı oluştur"}
+          </button>
+          {error ? <p className="error">{error}</p> : null}
+          {token ? (
+            <div style={{ marginTop: 16 }}>
+              <div className="field-label" style={{ marginBottom: 6 }}>
+                Token (kopyala, güvenli sakla)
+              </div>
+              <code className="token-box">{token}</code>
+            </div>
+          ) : null}
+        </div>
+
+        <RevokeTokens />
+      </main>
+    </>
   );
 }
 
@@ -67,11 +70,11 @@ function RevokeTokens() {
   }
 
   return (
-    <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #eee" }}>
-      <p style={{ color: "#666", fontSize: 13 }}>
+    <div style={{ marginTop: 24 }}>
+      <p className="muted small">
         Bir token sızdıysa mevcut tüm token&apos;ları iptal edip yenisini oluşturabilirsin.
       </p>
-      <button onClick={revoke} disabled={busy || done} style={{ border: "1px solid #b91c1c", color: "#b91c1c", background: "transparent", borderRadius: 6, padding: "6px 12px" }}>
+      <button onClick={revoke} disabled={busy || done} className="btn btn-danger-subtle">
         {done ? "Token'lar iptal edildi ✓" : busy ? "İptal ediliyor…" : "Mevcut token'ları iptal et"}
       </button>
     </div>

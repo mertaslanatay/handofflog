@@ -4,6 +4,7 @@ import { primaryWorkspaceId } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { listReleases } from "@backend/services";
 import { relativeTime } from "@core/relative-time";
+import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,13 @@ export default async function ReleasesPage() {
   const workspaceId = await primaryWorkspaceId(userId);
   if (!workspaceId) {
     return (
-      <main>
-        <h1>Releases</h1>
-        <p>Henüz bir workspace bulunamadı.</p>
-      </main>
+      <>
+        <AppHeader active="releases" />
+        <main className="container">
+          <h1>Releases</h1>
+          <p className="muted">Henüz bir workspace bulunamadı.</p>
+        </main>
+      </>
     );
   }
 
@@ -25,36 +29,38 @@ export default async function ReleasesPage() {
   const releases = await listReleases(repo, { userId }, workspaceId);
 
   return (
-    <main>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h1>Releases</h1>
-        <span style={{ fontSize: 13 }}>
-          <a href="/versions" style={{ color: "#005a9e" }}>
-            Versiyonlar
+    <>
+      <AppHeader active="releases" />
+      <main className="container">
+        <div className="row" style={{ marginBottom: 18 }}>
+          <h1 style={{ margin: 0 }}>Releases</h1>
+          <a href="/versions" className="btn btn-subtle">
+            Handoff değişiklikleri →
           </a>
-          {" · "}
-          <a href="/settings" style={{ color: "#005a9e" }}>
-            Ayarlar
-          </a>
-        </span>
-      </div>
-      {releases.length === 0 ? (
-        <p>Henüz release yok. Figma plugin&apos;inden bir tarama yayınla (Publish).</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {releases.map((r) => (
-            <li key={r.id} style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 12, marginBottom: 8 }}>
-              <a href={`/releases/${r.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <strong>{r.release.name}</strong>{" "}
-                <span style={{ color: "#666" }}>
-                  v{r.release.version} · {r.release.type} · {r.release.impact} · {r.release.changes.length} değişiklik ·{" "}
-                  {relativeTime(r.createdAt, Date.now())}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+        </div>
+        {releases.length === 0 ? (
+          <div className="notice muted">
+            Henüz release yok. Figma plugin&apos;inden bir tarama yayınla (Publish).
+          </div>
+        ) : (
+          <ul className="list">
+            {releases.map((r) => (
+              <li key={r.id}>
+                <a href={`/releases/${r.id}`} className="link-card">
+                  <div className="row">
+                    <strong>{r.release.name}</strong>
+                    <span className="lz lz-blue">v{r.release.version}</span>
+                  </div>
+                  <div className="muted small" style={{ marginTop: 6 }}>
+                    {r.release.type} · impact {r.release.impact} · {r.release.changes.length} değişiklik ·{" "}
+                    {relativeTime(r.createdAt, Date.now())}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </>
   );
 }

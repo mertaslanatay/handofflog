@@ -1,23 +1,18 @@
 export default function Home() {
   return (
-    <main>
-      <h1>Handofflog</h1>
-      <p>Figma tasarım değişikliklerini ekibin için release notlarına çevir.</p>
-      <p>
-        <a
-          href="/api/auth/figma"
-          style={{
-            display: "inline-block",
-            background: "#005a9e",
-            color: "#fff",
-            padding: "10px 16px",
-            borderRadius: 6,
-            textDecoration: "none",
-          }}
-        >
+    <main className="center-screen">
+      <div className="card" style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+        <div className="brand" style={{ justifyContent: "center", fontSize: 20, marginBottom: 10 }}>
+          <span className="brand-mark" />
+          Handofflog
+        </div>
+        <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
+          Figma tasarım değişikliklerini ekibin için nokta atışı changelog&apos;a çevir.
+        </p>
+        <a href="/api/auth/figma" className="btn btn-primary" style={{ width: "100%" }}>
           Figma ile giriş yap
         </a>
-      </p>
+      </div>
     </main>
   );
 }

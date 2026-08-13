@@ -4,41 +4,39 @@ import { primaryWorkspaceId } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { listReleases, acknowledgementRate } from "@backend/services";
 import { AckPanel } from "@/components/AckPanel";
+import { AppHeader } from "@/components/AppHeader";
 import { relativeTime, formatDateTime } from "@core/relative-time";
 import type { NodeChange } from "@shared/schema";
 import type { PersistedScreenshot, ReleaseVisualScreen } from "@shared/release";
 import type { HighlightRegion } from "@shared/schema";
 
 const KIND_COLOR: Record<string, string> = {
-  added: "#16a34a",
-  removed: "#dc2626",
-  modified: "#7c3aed",
+  added: "#22a06b",
+  removed: "#c9372c",
+  modified: "#8250df",
+};
+const KIND_LZ: Record<string, string> = {
+  added: "lz-green",
+  removed: "lz-red",
+  modified: "lz-purple",
 };
 
-function ScreenImage({
-  img,
-  regions,
-  label,
-}: {
-  img: PersistedScreenshot;
-  regions: HighlightRegion[];
-  label: string;
-}) {
+function ScreenImage({ img, regions, label }: { img: PersistedScreenshot; regions: HighlightRegion[]; label: string }) {
   const w = img.width;
   const h = img.height;
   return (
     <figure style={{ flex: "1 1 260px", minWidth: 220, margin: 0 }}>
-      <figcaption style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{label}</figcaption>
-      <div style={{ position: "relative", width: "100%", border: "1px solid #eee", borderRadius: 4 }}>
+      <figcaption className="field-label" style={{ marginBottom: 6 }}>{label}</figcaption>
+      <div style={{ position: "relative", width: "100%", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/screenshots?pathname=${encodeURIComponent(img.pathname)}`}
           alt={label}
-          style={{ display: "block", width: "100%", height: "auto", borderRadius: 4 }}
+          style={{ display: "block", width: "100%", height: "auto" }}
         />
         {w > 0 && h > 0
           ? regions.map((r) => {
-              const color = KIND_COLOR[r.kind] ?? "#7c3aed";
+              const color = KIND_COLOR[r.kind] ?? "#8250df";
               return (
                 <div
                   key={r.trackingId}
@@ -53,19 +51,7 @@ function ScreenImage({
                     boxSizing: "border-box",
                   }}
                 >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -15,
-                      left: 0,
-                      fontSize: 10,
-                      padding: "0 3px",
-                      background: color,
-                      color: "#fff",
-                      borderRadius: 2,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <span style={{ position: "absolute", top: -15, left: 0, fontSize: 10, padding: "0 3px", background: color, color: "#fff", borderRadius: 2, whiteSpace: "nowrap" }}>
                     {r.kind}
                   </span>
                 </div>
@@ -81,29 +67,24 @@ function VisualDiffView({ screens }: { screens: ReleaseVisualScreen[] }) {
   const withImages = screens.filter((s) => s.before || s.after);
   if (withImages.length === 0) return null;
   return (
-    <section style={{ marginTop: 20 }}>
-      <h2>Visual Diff</h2>
+    <section>
+      <h2>Görsel diff</h2>
       {screens.map((screen) => {
-        // Before shows what was removed/changed; after shows what was added/changed.
         const beforeRegions = screen.regions.filter((r) => r.kind !== "added");
         const afterRegions = screen.regions.filter((r) => r.kind !== "removed");
         return (
-          <div key={screen.screen} style={{ marginBottom: 16 }}>
-            <p style={{ margin: "0 0 4px" }}>
-              <strong>{screen.screen}</strong>{" "}
-              <span style={{ color: "#666" }}>· {screen.regions.length} değişiklik</span>
-            </p>
+          <div key={screen.screen} className="card" style={{ marginBottom: 12 }}>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <strong>{screen.screen}</strong>
+              <span className="muted small">{screen.regions.length} değişiklik</span>
+            </div>
             {screen.before || screen.after ? (
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-                {screen.before ? (
-                  <ScreenImage img={screen.before} regions={beforeRegions} label="Önce (baseline)" />
-                ) : null}
-                {screen.after ? (
-                  <ScreenImage img={screen.after} regions={afterRegions} label="Sonra (güncel)" />
-                ) : null}
+                {screen.before ? <ScreenImage img={screen.before} regions={beforeRegions} label="Önce (baseline)" /> : null}
+                {screen.after ? <ScreenImage img={screen.after} regions={afterRegions} label="Sonra (güncel)" /> : null}
               </div>
             ) : (
-              <p style={{ color: "#666", margin: 0 }}>Görüntü yok.</p>
+              <p className="muted" style={{ margin: 0 }}>Görüntü yok.</p>
             )}
           </div>
         );
@@ -116,17 +97,21 @@ export const dynamic = "force-dynamic";
 
 function ChangeRow({ change }: { change: NodeChange }) {
   return (
-    <li style={{ borderLeft: "3px solid #ccc", padding: "6px 10px", marginBottom: 6, listStyle: "none" }}>
-      <div>
-        <strong>{change.kind}</strong> · {change.nodeName}{" "}
-        <span style={{ color: "#666" }}>({change.nodeType})</span> ·{" "}
-        <span style={{ color: "#b45309" }}>{change.impact}</span>
+    <li className="screen" style={{ marginBottom: 8 }}>
+      <div className="screen-head">
+        <span className={`lz ${KIND_LZ[change.kind] ?? "lz-neutral"}`}>{change.kind}</span>
+        <span className="screen-name">{change.nodeName}</span>
+        <span className="muted small">{change.nodeType} · impact {change.impact}</span>
       </div>
-      {change.propertyChanges.map((pc, i) => (
-        <div key={`${pc.path}-${i}`} style={{ fontFamily: "monospace", fontSize: 12, color: "#444" }}>
-          {pc.summary}
-        </div>
-      ))}
+      {change.propertyChanges.length ? (
+        <ul className="changes">
+          {change.propertyChanges.map((pc, i) => (
+            <li key={`${pc.path}-${i}`} className="change mono" style={{ fontSize: 12 }}>
+              {pc.summary}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }
@@ -146,39 +131,41 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
   const rate = await acknowledgementRate(repo, { userId }, workspaceId, record.id);
   const rel = record.release;
   const changes = rel.changes;
+  const dt = formatDateTime(record.createdAt);
 
   return (
-    <main>
-      <p style={{ marginBottom: 4 }}>
-        <a href="/releases" style={{ color: "#005a9e" }}>
-          ← Releases
-        </a>
-      </p>
-      <h1 style={{ marginBottom: 4 }}>{rel.name}</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        v{rel.version} · {rel.type} · impact: {rel.impact} · {changes.length} değişiklik
-        <br />
-        {formatDateTime(record.createdAt).date} {formatDateTime(record.createdAt).time} ·{" "}
-        {relativeTime(record.createdAt, Date.now())}
-      </p>
-      {rel.description ? <p>{rel.description}</p> : null}
+    <>
+      <AppHeader active="releases" />
+      <main className="container">
+        <p style={{ marginBottom: 8 }}>
+          <a href="/releases" className="muted">← Releases</a>
+        </p>
+        <div className="screen-head" style={{ marginBottom: 6 }}>
+          <h1 style={{ margin: 0 }}>{rel.name}</h1>
+          <span className="lz lz-blue">v{rel.version}</span>
+          <span className="lz lz-neutral">{rel.type}</span>
+          <span className="lz lz-purple">impact {rel.impact}</span>
+        </div>
+        <p className="muted small">
+          {dt.date} {dt.time} · {relativeTime(record.createdAt, Date.now())} · {changes.length} değişiklik
+        </p>
+        {rel.description ? <p>{rel.description}</p> : null}
 
-      <AckPanel releaseId={record.id} workspaceId={workspaceId} initialRate={rate} />
+        <AckPanel releaseId={record.id} workspaceId={workspaceId} initialRate={rate} />
 
-      {rel.visualDiff && rel.visualDiff.length > 0 ? (
-        <VisualDiffView screens={rel.visualDiff} />
-      ) : null}
+        {rel.visualDiff && rel.visualDiff.length > 0 ? <VisualDiffView screens={rel.visualDiff} /> : null}
 
-      <h2 style={{ marginTop: 20 }}>Değişiklikler</h2>
-      {changes.length === 0 ? (
-        <p style={{ color: "#666" }}>Bu release'e dahil edilmiş değişiklik yok.</p>
-      ) : (
-        <ul style={{ padding: 0 }}>
-          {changes.map((c) => (
-            <ChangeRow key={c.trackingId} change={c} />
-          ))}
-        </ul>
-      )}
-    </main>
+        <h2>Değişiklikler</h2>
+        {changes.length === 0 ? (
+          <p className="muted">Bu release&apos;e dahil edilmiş değişiklik yok.</p>
+        ) : (
+          <ul className="list">
+            {changes.map((c) => (
+              <ChangeRow key={c.trackingId} change={c} />
+            ))}
+          </ul>
+        )}
+      </main>
+    </>
   );
 }

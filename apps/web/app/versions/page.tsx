@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
 
 interface FigmaVersion {
   id: string;
@@ -34,18 +35,18 @@ interface PageTotals {
   unchanged: number;
   changes: number;
 }
-interface VersionInfo {
-  id: string;
-  created_at?: string;
-  label?: string | null;
-}
 interface ReportResponse {
-  from: VersionInfo;
-  to: VersionInfo;
+  from: { id: string; created_at?: string; label?: string | null };
+  to: { id: string; created_at?: string; label?: string | null };
   report: { totals: PageTotals; screens: ScreenReport[] };
 }
 
-const accent = "#005a9e";
+const STATUS_META: Record<ScreenStatus, { cls: string; lz: string; label: string }> = {
+  modified: { cls: "mod", lz: "lz-purple", label: "Değişmiş" },
+  added: { cls: "add", lz: "lz-green", label: "Yeni ekran" },
+  removed: { cls: "rem", lz: "lz-red", label: "Silinmiş" },
+  unchanged: { cls: "same", lz: "lz-neutral", label: "Aynı" },
+};
 
 function versionLabel(v: FigmaVersion): string {
   const d = new Date(v.created_at).toLocaleString();
@@ -143,166 +144,174 @@ export default function VersionsPage() {
   const t = report?.report.totals;
 
   return (
-    <main>
-      <p style={{ marginBottom: 4 }}>
-        <a href="/releases" style={{ color: accent }}>
-          ← Releases
-        </a>
-      </p>
-      <h1>Handoff değişiklikleri</h1>
-      <p style={{ color: "#666", maxWidth: 680 }}>
-        Bir handoff sayfası (Figma page) seç; o sayfadaki her ekranın iki versiyon arasında ne değiştiğini
-        otomatik gösterir. Figma&apos;nın kendi version history&apos;sinden okur — dosyayı taramaz, kilitlemez.
-        Dosya anahtarı URL&apos;deki <code>/design/&lt;FILE_KEY&gt;/</code> kısmıdır.
-      </p>
+    <>
+      <AppHeader active="versions" />
+      <main className="container">
+        <h1>Handoff değişiklikleri</h1>
+        <p className="subtitle">
+          Bir handoff sayfası (Figma page) seç; o sayfadaki her ekranın iki versiyon arasında ne değiştiğini
+          otomatik gösterir. Figma&apos;nın kendi version history&apos;sinden okur — dosyayı taramaz, kilitlemez.
+        </p>
 
-      {needConnect ? (
-        <div style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 16, margin: "12px 0" }}>
-          <p style={{ marginTop: 0 }}>
-            Figma dosya erişimi bağlı değil. Yeni izinlerle yeniden giriş yap.
-          </p>
-          <a
-            href="/api/auth/figma"
-            style={{ background: accent, color: "#fff", borderRadius: 6, padding: "8px 14px", textDecoration: "none" }}
-          >
-            Figma&apos;yı bağla
-          </a>
+        {needConnect ? (
+          <div className="notice" style={{ marginBottom: 16 }}>
+            <p style={{ marginTop: 0 }}>Figma dosya erişimi bağlı değil. Yeni izinlerle yeniden giriş yap.</p>
+            <a href="/api/auth/figma" className="btn btn-primary">
+              Figma&apos;yı bağla
+            </a>
+          </div>
+        ) : null}
+
+        <div className="card">
+          <div className="toolbar">
+            <div className="field grow">
+              <span className="field-label">Dosya anahtarı</span>
+              <input
+                value={fileKey}
+                onChange={(e) => setFileKey(e.target.value)}
+                placeholder="URL'deki /design/<FILE_KEY>/ kısmı"
+                className="input mono"
+              />
+            </div>
+            <button onClick={loadFileMeta} disabled={loading} className="btn btn-primary">
+              {loading ? "Yükleniyor…" : "Getir"}
+            </button>
+          </div>
+
+          {pages.length > 0 ? (
+            <div className="toolbar" style={{ marginTop: 12 }}>
+              <label className="field grow">
+                <span className="field-label">Handoff sayfası (Figma page)</span>
+                <select
+                  value={pageId}
+                  onChange={(e) => {
+                    setPageId(e.target.value);
+                    void runReport(fileKey.trim(), e.target.value, fromV, toV);
+                  }}
+                  className="select"
+                >
+                  {pages.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field grow">
+                <span className="field-label">Baz al (önce)</span>
+                <select
+                  value={fromV}
+                  onChange={(e) => {
+                    setFromV(e.target.value);
+                    void runReport(fileKey.trim(), pageId, e.target.value, toV);
+                  }}
+                  className="select"
+                >
+                  {versions.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {versionLabel(v)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field grow">
+                <span className="field-label">Karşılaştır (sonra)</span>
+                <select
+                  value={toV}
+                  onChange={(e) => {
+                    setToV(e.target.value);
+                    void runReport(fileKey.trim(), pageId, fromV, e.target.value);
+                  }}
+                  className="select"
+                >
+                  {versions.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {versionLabel(v)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "12px 0" }}>
-        <input
-          value={fileKey}
-          onChange={(e) => setFileKey(e.target.value)}
-          placeholder="FILE_KEY"
-          style={{ flex: 1, padding: 8, border: "1px solid #ccc", borderRadius: 6, fontFamily: "monospace" }}
-        />
-        <button
-          onClick={loadFileMeta}
-          disabled={loading}
-          style={{ background: accent, color: "#fff", border: 0, borderRadius: 6, padding: "9px 16px" }}
-        >
-          {loading ? "…" : "Getir"}
-        </button>
-      </div>
+        {error ? <p className="error">{error}</p> : null}
+        {reporting ? <p className="muted" style={{ marginTop: 16 }}>Rapor oluşturuluyor…</p> : null}
 
-      {error ? <p style={{ color: "#b91c1c" }}>{error}</p> : null}
+        {t ? (
+          <>
+            <div className="stat-grid">
+              <div className="stat">
+                <div className="stat-value">{t.screens}</div>
+                <div className="stat-label">Ekran</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value v-purple">{t.modified}</div>
+                <div className="stat-label">🟣 Değişmiş</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value v-green">{t.added}</div>
+                <div className="stat-label">🆕 Eklenmiş</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value v-red">{t.removed}</div>
+                <div className="stat-label">🗑️ Silinmiş</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{t.unchanged}</div>
+                <div className="stat-label">✅ Aynı</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value v-blue">{t.changes}</div>
+                <div className="stat-label">Toplam değişiklik</div>
+              </div>
+            </div>
 
-      {pages.length > 0 ? (
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end", margin: "8px 0 4px" }}>
-          <label style={{ fontSize: 13 }}>
-            <div style={{ color: "#666", marginBottom: 2 }}>Handoff sayfası (Figma page)</div>
-            <select
-              value={pageId}
-              onChange={(e) => {
-                setPageId(e.target.value);
-                void runReport(fileKey.trim(), e.target.value, fromV, toV);
-              }}
-              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", minWidth: 220 }}
-            >
-              {pages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
+            <ul className="list">
+              {report!.report.screens.map((s) => {
+                const m = STATUS_META[s.status];
+                return (
+                  <li key={s.screenId} className={`screen ${m.cls}`}>
+                    <div className="screen-head">
+                      <span className={`lz ${m.lz}`}>{m.label}</span>
+                      <span className="screen-name">{s.name}</span>
+                      {s.changeCount > 0 ? <span className="muted small">{s.changeCount} değişiklik</span> : null}
+                    </div>
+                    {s.status === "modified" && s.changes.length > 0 ? (
+                      <ul className="changes">
+                        {s.changes.slice(0, 40).map((c, i) => (
+                          <li key={i} className="change">
+                            <span className={`dot ${c.kind}`} />
+                            {c.text}
+                          </li>
+                        ))}
+                        {s.changes.length > 40 ? (
+                          <li className="muted small">… +{s.changes.length - 40} daha</li>
+                        ) : null}
+                      </ul>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
+
+        {versions.length > 0 ? (
+          <details style={{ marginTop: 20 }}>
+            <summary>Ham versiyon geçmişi ({versions.length})</summary>
+            <ul className="list" style={{ marginTop: 8 }}>
+              {versions.slice(0, 40).map((v) => (
+                <li key={v.id} style={{ borderBottom: "1px solid var(--border)", padding: "6px 0", fontSize: 13 }}>
+                  <span className="muted">{new Date(v.created_at).toLocaleString()}</span> ·{" "}
+                  {v.user?.handle || v.user?.email || "—"}{" "}
+                  {v.label ? <strong>★ {v.label}</strong> : <span className="muted">· autosave</span>}
+                </li>
               ))}
-            </select>
-          </label>
-
-          <label style={{ fontSize: 13 }}>
-            <div style={{ color: "#666", marginBottom: 2 }}>Baz al (önce)</div>
-            <select
-              value={fromV}
-              onChange={(e) => {
-                setFromV(e.target.value);
-                void runReport(fileKey.trim(), pageId, e.target.value, toV);
-              }}
-              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", maxWidth: 320 }}
-            >
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {versionLabel(v)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ fontSize: 13 }}>
-            <div style={{ color: "#666", marginBottom: 2 }}>Karşılaştır (sonra)</div>
-            <select
-              value={toV}
-              onChange={(e) => {
-                setToV(e.target.value);
-                void runReport(fileKey.trim(), pageId, fromV, e.target.value);
-              }}
-              style={{ padding: 7, borderRadius: 6, border: "1px solid #ccc", maxWidth: 320 }}
-            >
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {versionLabel(v)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : null}
-
-      {reporting ? <p style={{ color: "#666" }}>Rapor oluşturuluyor…</p> : null}
-
-      {t ? (
-        <>
-          <p style={{ margin: "14px 0 8px" }}>
-            <strong>{t.screens}</strong> ekran · 🟣 {t.modified} değişmiş · 🆕 {t.added} eklenmiş · 🗑️ {t.removed} silinmiş ·
-            ✅ {t.unchanged} aynı · <strong>{t.changes}</strong> toplam değişiklik
-          </p>
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {report!.report.screens.map((s) => (
-              <li
-                key={s.screenId}
-                style={{
-                  border: "1px solid #e5e5e5",
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 8,
-                  background: s.status === "unchanged" ? "#fafafa" : "#fff",
-                }}
-              >
-                {s.status === "modified" ? (
-                  <>
-                    <strong style={{ color: "#7c3aed" }}>🟣 {s.name}</strong>{" "}
-                    <span style={{ color: "#666" }}>— {s.changeCount} değişiklik</span>
-                    <ul style={{ fontSize: 13, color: "#333", marginTop: 6 }}>
-                      {s.changes.slice(0, 30).map((c, i) => (
-                        <li key={i}>{c.text}</li>
-                      ))}
-                      {s.changes.length > 30 ? <li style={{ color: "#999" }}>… +{s.changes.length - 30} daha</li> : null}
-                    </ul>
-                  </>
-                ) : s.status === "added" ? (
-                  <span style={{ color: "#16a34a" }}>🆕 {s.name} — yeni ekran</span>
-                ) : s.status === "removed" ? (
-                  <span style={{ color: "#b91c1c" }}>🗑️ {s.name} — silinmiş ekran</span>
-                ) : (
-                  <span style={{ color: "#999" }}>✅ {s.name} — değişmemiş</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      {versions.length > 0 ? (
-        <details style={{ marginTop: 20 }}>
-          <summary style={{ cursor: "pointer", color: "#666" }}>Ham versiyon geçmişi ({versions.length})</summary>
-          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
-            {versions.slice(0, 40).map((v) => (
-              <li key={v.id} style={{ borderBottom: "1px solid #eee", padding: "5px 0", fontSize: 13 }}>
-                <span style={{ color: "#666" }}>{new Date(v.created_at).toLocaleString()}</span> ·{" "}
-                {v.user?.handle || v.user?.email || "—"} {v.label ? <strong>★ {v.label}</strong> : <span style={{ color: "#999" }}>· autosave</span>}
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-    </main>
+            </ul>
+          </details>
+        ) : null}
+      </main>
+    </>
   );
 }
