@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeAndFetchProfile } from "@/server/figma-auth";
 import { createSession, readOAuthState } from "@/server/session";
+import { storeFigmaToken } from "@/server/figma-token";
 import { ensureUserAndWorkspace } from "@/server/onboarding";
 
 // GET /api/auth/figma/callback — OAuth redirect target.
@@ -15,9 +16,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const profile = await exchangeAndFetchProfile(code);
+    const { profile, accessToken } = await exchangeAndFetchProfile(code);
     const { userId } = await ensureUserAndWorkspace(profile);
     await createSession(userId);
+    await storeFigmaToken(accessToken);
     return NextResponse.redirect(new URL("/releases", req.url));
   } catch (err) {
     // eslint-disable-next-line no-console

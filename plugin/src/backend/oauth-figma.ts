@@ -58,3 +58,8 @@ export function buildTokenExchangeRequest(params: TokenExchangeParams): HttpRequ
     body: body.toString(),
   };
 }
+
+// Version-history feature (DEC-034) needs file + version read on top of identity.
+// NOTE: these must also be enabled in the Figma app's OAuth scopes, or authorize
+// returns "Invalid scopes for app".
+export const LOGIN_SCOPES = ["current_user:read", "files:read", "file_versions:read"];

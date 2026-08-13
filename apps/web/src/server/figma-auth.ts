@@ -1,14 +1,21 @@
 /**
  * Figma OAuth server helpers (I-02/I-03). Uses the tested pure builders from
  * @backend/oauth-figma and performs the network calls with env-injected secrets.
- * Secrets are read from process.env, never logged.
+ * Login requests LOGIN_SCOPES (identity + files:read + file_versions:read) so the
+ * returned access token can also read version history (DEC-034). Secrets are read
+ * from process.env, never logged.
  */
-import { buildAuthorizeUrl, buildTokenExchangeRequest } from "@backend/oauth-figma";
+import { buildAuthorizeUrl, buildTokenExchangeRequest, LOGIN_SCOPES } from "@backend/oauth-figma";
 
 export interface FigmaProfile {
   figmaUserId: string;
   email: string;
   name?: string;
+}
+
+export interface FigmaLoginResult {
+  profile: FigmaProfile;
+  accessToken: string;
 }
 
 function requireEnv(name: string): string {
@@ -25,11 +32,11 @@ function baseConfig(): { clientId: string; redirectUri: string } {
 }
 
 export function loginUrl(state: string): string {
-  return buildAuthorizeUrl(baseConfig(), state);
+  return buildAuthorizeUrl({ ...baseConfig(), scopes: LOGIN_SCOPES }, state);
 }
 
-/** Exchange the auth code for a token and fetch the Figma profile. */
-export async function exchangeAndFetchProfile(code: string): Promise<FigmaProfile> {
+/** Exchange the auth code for a token, fetch the profile, and return both. */
+export async function exchangeAndFetchProfile(code: string): Promise<FigmaLoginResult> {
   const req = buildTokenExchangeRequest({
     ...baseConfig(),
     clientSecret: requireEnv("FIGMA_OAUTH_CLIENT_SECRET"),
@@ -47,5 +54,8 @@ export async function exchangeAndFetchProfile(code: string): Promise<FigmaProfil
   const me = (await meRes.json()) as { id?: string; email?: string; handle?: string };
   if (!me.id || !me.email) throw new Error("Incomplete Figma profile.");
 
-  return { figmaUserId: String(me.id), email: me.email, name: me.handle };
+  return {
+    profile: { figmaUserId: String(me.id), email: me.email, name: me.handle },
+    accessToken: token.access_token,
+  };
 }
