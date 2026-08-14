@@ -343,3 +343,14 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **Detaylar:** Rota `POST /api/figma/publish-release` (varsayılan from=son isimli versiyon, to=en son; `positionNoise: suppress-on-parent-resize` ile reflow gürültüsü elenir; boş diff 409). `primaryContext` workspace+proje çözer. Version = mevcut release sayısı+1 (otomatik); ad/tür/açıklama opsiyonel.
 **Görsel diff (eklendi):** Publish'te opsiyonel olarak değişen ekranlar Figma images API (`version` ile) üzerinden before/after render edilip Private Blob'a yüklenir; highlight'lar REST kutularından hesaplanır (`visual-figma.ts`). Ekran cap 8, best-effort (Blob yoksa metin-only publish; `maxDuration=60`).
 **Sonuç:** Web tsc temiz. Runtime deploy'da doğrulanacak.
+
+## DEC-036 — Ekip daveti + paydaş inceleme akışı (Faz A)
+
+**Durum:** Kabul edildi (ürün sahibi)
+**Karar:** Workspace'e paydaş davet etme ve release başına inceleme/onay görünürlüğü. Faz A (dış servis gerektirmeyen çekirdek): paylaşılabilir **davet linki**, katılım akışı, **/team** sayfası (üyeler + bekleyen davetler), release detayında **inceleme durumu** (kim İncelendi/Bekliyor).
+**Model:** `WorkspaceInvite` (raw token bir kez üretilir, yalnızca SHA-256 hash saklanır; link `APP_BASE_URL/join?token=<raw>`). `/join` route'u; girişsizse token cookie'ye konur, OAuth callback davetliyi kişisel workspace açmadan davet edilen workspace'e **üye yapar** (`ensureUser`+`acceptInvite`). Davet DB'de tutulur → bekleyen davetler de görünür.
+**Karar detayları:** Reviewer'lar plugin'e gerek duymadan sadece web linkiyle gelir; onay mevcut `Acknowledgement` (release başına "reviewed") üzerine bindirildi; davet oluşturma yalnızca workspace sahibi.
+**Sağlama (kullanıcı):** DB'ye şema uygula → `cd apps/web && npx prisma db push` (WorkspaceInvite tablosu). Vercel build zaten `prisma generate` çalıştırır.
+**Sonraki (Faz B):** e-posta ile otomatik davet gönderimi (e-posta sağlayıcısı gerektirir), plugin'e "ekibi web'de aç/davet" butonu, ve AI ile insan-dili değişiklik özeti (ANTHROPIC_API_KEY).
+**Not:** Görsel diff checkbox'ı (DEC-035) süre limiti nedeniyle varsayılan kapalı yapıldı; özellik duruyor.
+**Sonuç:** web tsc temiz. Runtime, db push + deploy sonrası doğrulanacak.

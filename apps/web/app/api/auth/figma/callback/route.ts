@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeAndFetchProfile } from "@/server/figma-auth";
-import { createSession, readOAuthState } from "@/server/session";
+import { createSession, readOAuthState, readInviteCookie, clearInviteCookie } from "@/server/session";
 import { storeFigmaToken } from "@/server/figma-token";
-import { ensureUserAndWorkspace } from "@/server/onboarding";
+import { ensureUserAndWorkspace, ensureUser } from "@/server/onboarding";
+import { acceptInvite } from "@/server/invites";
 
 // GET /api/auth/figma/callback — OAuth redirect target.
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -17,6 +18,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   try {
     const { profile, accessToken } = await exchangeAndFetchProfile(code);
+    const invite = readInviteCookie();
+
+    if (invite) {
+      const { userId } = await ensureUser(profile);
+      const joined = await acceptInvite(invite, userId);
+      clearInviteCookie();
+      await createSession(userId);
+      await storeFigmaToken(accessToken);
+      return NextResponse.redirect(new URL(joined ? "/releases" : "/?error=invite_invalid", req.url));
+    }
+
     const { userId } = await ensureUserAndWorkspace(profile);
     await createSession(userId);
     await storeFigmaToken(accessToken);
@@ -25,8 +37,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // eslint-disable-next-line no-console
     console.error("oauth_callback_error", err);
     const reason = err instanceof Error ? err.message : "unknown";
-    return NextResponse.redirect(
-      new URL(`/?error=oauth_failed&reason=${encodeURIComponent(reason)}`, req.url)
-    );
+    return NextResponse.redirect(new URL(`/?error=oauth_failed&reason=${encodeURIComponent(reason)}`, req.url));
   }
 }

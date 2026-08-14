@@ -70,3 +70,14 @@ export function setOAuthState(state: string): void {
 export function readOAuthState(): string | undefined {
   return cookies().get("hl_oauth_state")?.value;
 }
+
+/** Short-lived cookie carrying an invite token through the OAuth round-trip. */
+export function setInviteCookie(token: string): void {
+  cookies().set("hl_invite", token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 600 });
+}
+export function readInviteCookie(): string | undefined {
+  return cookies().get("hl_invite")?.value;
+}
+export function clearInviteCookie(): void {
+  cookies().delete("hl_invite");
+}

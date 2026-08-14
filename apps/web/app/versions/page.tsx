@@ -72,7 +72,7 @@ export default function VersionsPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number; visualScreens?: number } | null>(null);
-  const [pVisual, setPVisual] = useState(true);
+  const [pVisual, setPVisual] = useState(false);
 
   async function loadFileMeta() {
     const key = fileKey.trim();

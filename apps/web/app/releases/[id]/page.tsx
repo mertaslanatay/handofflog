@@ -5,6 +5,7 @@ import { PrismaRepository } from "@/server/repository.prisma";
 import { listReleases, acknowledgementRate } from "@backend/services";
 import { AckPanel } from "@/components/AckPanel";
 import { AppHeader } from "@/components/AppHeader";
+import { prisma } from "@/server/db";
 import { relativeTime, formatDateTime } from "@core/relative-time";
 import type { NodeChange } from "@shared/schema";
 import type { PersistedScreenshot, ReleaseVisualScreen } from "@shared/release";
@@ -129,6 +130,9 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
   if (!record) notFound();
 
   const rate = await acknowledgementRate(repo, { userId }, workspaceId, record.id);
+  const members = await prisma.workspaceMember.findMany({ where: { workspaceId }, include: { user: true } });
+  const acks = await repo.listAcknowledgements(workspaceId, record.id);
+  const reviewed = new Set(acks.map((a) => a.userId));
   const rel = record.release;
   const changes = rel.changes;
   const dt = formatDateTime(record.createdAt);
@@ -152,6 +156,22 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
         {rel.description ? <p>{rel.description}</p> : null}
 
         <AckPanel releaseId={record.id} workspaceId={workspaceId} initialRate={rate} />
+
+        <h2>İnceleme durumu</h2>
+        <ul className="list">
+          {members.map((m) => (
+            <li key={m.userId} className="screen">
+              <div className="screen-head">
+                <span className="screen-name">{m.user.displayName || m.user.email}</span>
+                {reviewed.has(m.userId) ? (
+                  <span className="lz lz-green">İncelendi</span>
+                ) : (
+                  <span className="lz lz-neutral">Bekliyor</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
 
         {rel.visualDiff && rel.visualDiff.length > 0 ? <VisualDiffView screens={rel.visualDiff} /> : null}
 

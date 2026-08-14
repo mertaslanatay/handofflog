@@ -1,4 +1,4 @@
-export function AppHeader({ active }: { active?: "releases" | "versions" | "settings" }) {
+export function AppHeader({ active }: { active?: "releases" | "versions" | "team" | "settings" }) {
   return (
     <header className="topnav">
       <div className="topnav-inner">
@@ -13,6 +13,9 @@ export function AppHeader({ active }: { active?: "releases" | "versions" | "sett
           </a>
           <a href="/versions" className={active === "versions" ? "active" : ""}>
             Versiyonlar
+          </a>
+          <a href="/team" className={active === "team" ? "active" : ""}>
+            Ekip
           </a>
           <a href="/settings" className={active === "settings" ? "active" : ""}>
             Ayarlar

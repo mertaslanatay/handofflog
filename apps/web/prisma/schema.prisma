@@ -33,6 +33,7 @@ model Workspace {
   projects  Project[]
   releases  ReleaseRecord[]
   acks      Acknowledgement[]
+  invites   WorkspaceInvite[]
   createdAt DateTime          @default(now())
 }
 
@@ -99,6 +100,21 @@ model PluginToken {
   tokenHash   String    @unique
   createdAt   DateTime  @default(now())
   revokedAt   DateTime?
+
+  @@index([workspaceId])
+}
+
+model WorkspaceInvite {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  email        String?
+  role         Role      @default(MEMBER)
+  tokenHash    String    @unique
+  createdById  String
+  createdAt    DateTime  @default(now())
+  acceptedAt   DateTime?
+  acceptedById String?
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }

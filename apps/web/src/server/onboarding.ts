@@ -55,3 +55,13 @@ export async function primaryContext(
     (await prisma.project.create({ data: { workspaceId: m.workspaceId, name: "Default Project" } }));
   return { workspaceId: m.workspaceId, projectId: project.id };
 }
+
+/** Find-or-create the user only (no workspace) — used by the invite-accept path. */
+export async function ensureUser(profile: FigmaProfile): Promise<{ userId: string }> {
+  const user = await prisma.user.upsert({
+    where: { email: profile.email },
+    update: { displayName: profile.name ?? undefined },
+    create: { email: profile.email, displayName: profile.name ?? null },
+  });
+  return { userId: user.id };
+}
