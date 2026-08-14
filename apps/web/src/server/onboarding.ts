@@ -43,3 +43,15 @@ export async function primaryWorkspaceId(userId: string): Promise<string | null>
   const m = await prisma.workspaceMember.findFirst({ where: { userId } });
   return m?.workspaceId ?? null;
 }
+
+/** The user's primary workspace + a project (creates a default project if none). */
+export async function primaryContext(
+  userId: string
+): Promise<{ workspaceId: string; projectId: string } | null> {
+  const m = await prisma.workspaceMember.findFirst({ where: { userId } });
+  if (!m) return null;
+  const project =
+    (await prisma.project.findFirst({ where: { workspaceId: m.workspaceId } })) ??
+    (await prisma.project.create({ data: { workspaceId: m.workspaceId, name: "Default Project" } }));
+  return { workspaceId: m.workspaceId, projectId: project.id };
+}

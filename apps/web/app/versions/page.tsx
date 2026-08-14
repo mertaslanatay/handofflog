@@ -65,6 +65,13 @@ export default function VersionsPage() {
   const [reporting, setReporting] = useState(false);
   const [needConnect, setNeedConnect] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPublish, setShowPublish] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pType, setPType] = useState("");
+  const [pDesc, setPDesc] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number } | null>(null);
 
   async function loadFileMeta() {
     const key = fileKey.trim();
@@ -138,6 +145,33 @@ export default function VersionsPage() {
       setError("Rapor isteği başarısız oldu.");
     } finally {
       setReporting(false);
+    }
+  }
+
+  async function doPublish() {
+    const key = fileKey.trim();
+    if (!key || !pageId || !fromV || !toV) return;
+    setPublishing(true);
+    setPublishError(null);
+    setPublishResult(null);
+    try {
+      const res = await fetch("/api/figma/publish-release", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === "no_changes") setPublishError("Yayınlanacak değişiklik yok.");
+        else setPublishError(data.detail || data.error || "Yayınlanamadı");
+        return;
+      }
+      setPublishResult({ id: data.id, name: data.name, version: data.version, changeCount: data.changeCount });
+      setShowPublish(false);
+    } catch {
+      setPublishError("İstek başarısız oldu.");
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -265,6 +299,61 @@ export default function VersionsPage() {
                 <div className="stat-value v-blue">{t.changes}</div>
                 <div className="stat-label">Toplam değişiklik</div>
               </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16, borderColor: "var(--blue)" }}>
+              <div className="row">
+                <div>
+                  <strong>Release olarak yayınla</strong>
+                  <div className="muted small">
+                    Bu değişiklikleri ekibe teslim notu (versiyon + onay takibi) olarak /releases&apos;e ekler.
+                  </div>
+                </div>
+                {!showPublish && !publishResult ? (
+                  <button className="btn btn-primary" onClick={() => setShowPublish(true)}>
+                    Release oluştur
+                  </button>
+                ) : null}
+              </div>
+              {showPublish ? (
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label className="field">
+                    <span className="field-label">Ad</span>
+                    <input className="input" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="ör. Abonelik akışı teslim" />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Tür</span>
+                    <select className="select" value={pType} onChange={(e) => setPType(e.target.value)}>
+                      <option value="">Otomatik (etkiden öner)</option>
+                      <option value="patch">patch</option>
+                      <option value="minor">minor</option>
+                      <option value="major">major</option>
+                      <option value="hotfix">hotfix</option>
+                      <option value="content">content</option>
+                      <option value="design-system">design-system</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Açıklama (opsiyonel)</span>
+                    <textarea className="input" rows={2} value={pDesc} onChange={(e) => setPDesc(e.target.value)} />
+                  </label>
+                  <div className="toolbar">
+                    <button className="btn btn-primary" onClick={doPublish} disabled={publishing}>
+                      {publishing ? "Yayınlanıyor…" : "Yayınla"}
+                    </button>
+                    <button className="btn btn-subtle" onClick={() => setShowPublish(false)} disabled={publishing}>
+                      Vazgeç
+                    </button>
+                  </div>
+                  {publishError ? <p className="error" style={{ margin: 0 }}>{publishError}</p> : null}
+                </div>
+              ) : null}
+              {publishResult ? (
+                <div className="notice" style={{ marginTop: 12, borderColor: "var(--green)" }}>
+                  ✅ Release yayınlandı: <strong>{publishResult.name}</strong> (v{publishResult.version}, {publishResult.changeCount} değişiklik).{" "}
+                  <a href={`/releases/${publishResult.id}`}>Aç →</a>
+                </div>
+              ) : null}
             </div>
 
             <ul className="list">

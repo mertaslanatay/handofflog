@@ -334,3 +334,12 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 - CLI eşdeğeri: `scripts/figma-versions.mjs` (PAT ile hızlı kontrol).
 **Sağlayıcı adımı (kullanıcı):** Figma app OAuth ayarlarında `file_content:read` ve `file_versions:read` scope'ları **açılmalı** (yoksa authorize "Invalid scopes for app" verir), sonra bir kez yeniden giriş yapılmalı. Ücretsiz takımda geçmiş 30 günle sınırlı; Pro/Org'da tam geçmiş.
 **Sonuç:** Versiyon listeleme + alan-diff uçtan uca kod olarak hazır ve testli; canlı doğrulama scope açılışı + yeniden giriş + gerçek dosya ile yapılacak.
+
+## DEC-035 — Versiyon akışı ile Releases'i birleştir (web'den Release publish)
+
+**Durum:** Kabul edildi (ürün sahibi)
+**Karar:** `/versions` handoff raporundan tek tıkla **Release** yayınlanabilir. Sunucu, seçili sayfanın iki versiyondaki REST node ağacını `loadSnapshotFromFigmaExport` ile Snapshot'a çevirir, `diffSnapshots` ile ChangeSet üretir, `buildRelease` ile plugin'inkiyle **birebir aynı yapıda** bir Release oluşturur ve `publishRelease` ile workspace/proje altına kaydeder → `/releases` timeline'ında acknowledgement takibiyle görünür. Plugin ve canlı tarama gerekmez.
+**Gerekçe:** İki akış örtüşüyordu; otomatik tespit (Versiyonlar) + kasıtlı teslim notu/onay (Releases) tek uçta birleşti. Aynı çekirdek motor kullanıldığı için kategori/impact/summary tutarlı, veri modeli tek.
+**Detaylar:** Rota `POST /api/figma/publish-release` (varsayılan from=son isimli versiyon, to=en son; `positionNoise: suppress-on-parent-resize` ile reflow gürültüsü elenir; boş diff 409). `primaryContext` workspace+proje çözer. Version = mevcut release sayısı+1 (otomatik); ad/tür/açıklama opsiyonel.
+**Sınır:** Bu yol görsel diff (ekran görüntüsü) eklemez — plugin publish'i hâlâ before/after PNG yükleyen tek yol. Web-Release metinsel changelog + onay içerir.
+**Sonuç:** Web tsc temiz. Runtime deploy'da doğrulanacak.
