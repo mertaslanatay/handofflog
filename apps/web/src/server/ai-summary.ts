@@ -21,7 +21,7 @@ function extractJson(text: string): unknown {
 export async function generateAiSummary(groups: ScreenChangeGroup[]): Promise<AiScreenSummary[] | null> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key || groups.length === 0) return null;
-  const model = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+  const model = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
   const input = groups.slice(0, 12).map((g) => ({ screen: g.screen, changes: g.changes.slice(0, 40) }));
   const system =
