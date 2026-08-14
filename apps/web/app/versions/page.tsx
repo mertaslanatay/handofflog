@@ -73,6 +73,7 @@ export default function VersionsPage() {
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number; visualScreens?: number } | null>(null);
   const [pVisual, setPVisual] = useState(false);
+  const [pAi, setPAi] = useState(true);
 
   async function loadFileMeta() {
     const key = fileKey.trim();
@@ -159,7 +160,7 @@ export default function VersionsPage() {
       const res = await fetch("/api/figma/publish-release", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined, visual: pVisual }),
+        body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined, visual: pVisual, ai: pAi }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -341,6 +342,10 @@ export default function VersionsPage() {
                   <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
                     <input type="checkbox" checked={pVisual} onChange={(e) => setPVisual(e.target.checked)} />
                     Görsel diff ekle (değişen ekranların önce/sonra görüntüsü — biraz yavaş olabilir)
+                  </label>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                    <input type="checkbox" checked={pAi} onChange={(e) => setPAi(e.target.checked)} />
+                    AI özeti ekle (değişiklikleri insan diline çevirir — ANTHROPIC_API_KEY gerekir)
                   </label>
                   <div className="toolbar">
                     <button className="btn btn-primary" onClick={doPublish} disabled={publishing}>

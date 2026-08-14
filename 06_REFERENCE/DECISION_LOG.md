@@ -354,3 +354,12 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **Sonraki (Faz B):** e-posta ile otomatik davet gönderimi (e-posta sağlayıcısı gerektirir), plugin'e "ekibi web'de aç/davet" butonu, ve AI ile insan-dili değişiklik özeti (ANTHROPIC_API_KEY).
 **Not:** Görsel diff checkbox'ı (DEC-035) süre limiti nedeniyle varsayılan kapalı yapıldı; özellik duruyor.
 **Sonuç:** web tsc temiz. Runtime, db push + deploy sonrası doğrulanacak.
+
+## DEC-037 — AI değişiklik özeti (anlatım katmanı)
+
+**Durum:** Kabul edildi (ürün sahibi)
+**Karar:** Web'den Release publish edilirken, deterministik diff **ekran bazlı** gruplanıp Anthropic Messages API ile kısa Türkçe maddelere çevrilir ("Header metni değişti", "yeni buton eklendi", "user ikonu gizlendi") ve release'e `aiSummary` olarak kaydedilir; release detayında "AI özeti" bölümünde gösterilir.
+**Sınır (DEC-008 ile uyum):** AI motorun **yerine geçmez** — yalnızca motorun ürettiği kesin değişikliklerin anlatımıdır; ham diff kaynak doğruluk olarak kalır. Model'e sadece diff verisi gider (node isimleri + property özetleri; kullanıcı onayıyla metin içerikleri dahil).
+**Uygulama:** `shared/release.ts` `AiScreenSummary` + opsiyonel `aiSummary`; `change-grouping.ts` (ekran bazlı gruplama) + `ai-summary.ts` (API, best-effort, 30 sn timeout). `ANTHROPIC_API_KEY` yoksa **sessizce atlanır** (publish yine çalışır). Model `ANTHROPIC_MODEL` ile ezilebilir (varsayılan claude-3-5-haiku-latest). Publish formunda "AI özeti ekle" checkbox (varsayılan açık).
+**Sağlama (kullanıcı):** Vercel env'e `ANTHROPIC_API_KEY` ekle (opsiyonel `ANTHROPIC_MODEL`).
+**Sonuç:** web tsc temiz; plugin 172 test yeşil. Runtime, anahtar + deploy sonrası doğrulanacak.

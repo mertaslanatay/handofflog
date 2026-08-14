@@ -10,6 +10,8 @@ import {
 import { primaryContext } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { computeScreenVisuals } from "@/server/visual-figma";
+import { groupChangesByScreen } from "@/server/change-grouping";
+import { generateAiSummary } from "@/server/ai-summary";
 import { uploadVisualScreens } from "@/server/blob";
 import { loadSnapshotFromFigmaExport, diffSnapshots, buildRelease } from "@core/index";
 import { assembleVisualScreens } from "@backend/visual";
@@ -28,6 +30,7 @@ interface Body {
   type?: ReleaseType;
   description?: string;
   visual?: boolean;
+  ai?: boolean;
 }
 
 const SCREEN_CAP = 8;
@@ -144,6 +147,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
       } catch {
         // Visual diff failed (e.g. Blob not configured) → publish text-only.
+      }
+    }
+
+    if (body.ai !== false) {
+      try {
+        const groups = groupChangesByScreen(beforeCanvas, afterCanvas, changeSet);
+        const summary = await generateAiSummary(groups);
+        if (summary) releaseToStore = { ...releaseToStore, aiSummary: summary };
+      } catch {
+        // AI summary unavailable → publish without it.
       }
     }
 

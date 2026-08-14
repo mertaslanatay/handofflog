@@ -155,6 +155,25 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
         </p>
         {rel.description ? <p>{rel.description}</p> : null}
 
+        {rel.aiSummary && rel.aiSummary.length > 0 ? (
+          <section>
+            <div className="screen-head" style={{ marginBottom: 8 }}>
+              <h2 style={{ margin: 0 }}>AI özeti</h2>
+              <span className="lz lz-purple">AI</span>
+            </div>
+            {rel.aiSummary.map((sm, i) => (
+              <div key={i} className="card" style={{ marginBottom: 8 }}>
+                <strong>{sm.screen}</strong>
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {sm.bullets.map((b, j) => (
+                    <li key={j} style={{ marginBottom: 2 }}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
         <AckPanel releaseId={record.id} workspaceId={workspaceId} initialRate={rate} />
 
         <h2>İnceleme durumu</h2>

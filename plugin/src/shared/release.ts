@@ -60,6 +60,15 @@ export type ReleaseType = z.infer<typeof ReleaseTypeSchema>;
 export const ReleaseStatusSchema = z.enum(["draft", "published", "archived"]);
 export type ReleaseStatus = z.infer<typeof ReleaseStatusSchema>;
 
+/** AI-generated, human-language summary of the diff, grouped per screen. It is a
+ *  presentation layer over the deterministic changes (DEC-008) — never a source
+ *  of truth. Additive/optional; generated server-side at publish time. */
+export const AiScreenSummarySchema = z.object({
+  screen: z.string(),
+  bullets: z.array(z.string()),
+});
+export type AiScreenSummary = z.infer<typeof AiScreenSummarySchema>;
+
 export const ReleaseSchema = z.object({
   schemaVersion: z.literal(RELEASE_SCHEMA_VERSION),
   id: z.string(),
@@ -80,6 +89,8 @@ export const ReleaseSchema = z.object({
   /** Persisted per-screen visual diff (refs only). Populated server-side after
    *  uploading screenshots; absent on plugin-local releases. Additive/optional. */
   visualDiff: z.array(ReleaseVisualScreenSchema).optional(),
+  /** Optional AI narration of the changes (DEC-008: narration, not detection). */
+  aiSummary: z.array(AiScreenSummarySchema).optional(),
 });
 export type Release = z.infer<typeof ReleaseSchema>;
 
