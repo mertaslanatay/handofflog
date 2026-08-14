@@ -345,7 +345,7 @@ export default function VersionsPage() {
                   </label>
                   <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
                     <input type="checkbox" checked={pAi} onChange={(e) => setPAi(e.target.checked)} />
-                    AI özeti ekle (değişiklikleri insan diline çevirir — ANTHROPIC_API_KEY gerekir)
+                    Değişiklik özeti ekle (okunur maddeler; AI anahtarı varsa AI, yoksa otomatik)
                   </label>
                   <div className="toolbar">
                     <button className="btn btn-primary" onClick={doPublish} disabled={publishing}>

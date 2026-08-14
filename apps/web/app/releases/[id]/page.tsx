@@ -158,8 +158,7 @@ export default async function ReleaseDetailPage({ params }: { params: { id: stri
         {rel.aiSummary && rel.aiSummary.length > 0 ? (
           <section>
             <div className="screen-head" style={{ marginBottom: 8 }}>
-              <h2 style={{ margin: 0 }}>AI özeti</h2>
-              <span className="lz lz-purple">AI</span>
+              <h2 style={{ margin: 0 }}>Değişiklik özeti</h2>
             </div>
             {rel.aiSummary.map((sm, i) => (
               <div key={i} className="card" style={{ marginBottom: 8 }}>

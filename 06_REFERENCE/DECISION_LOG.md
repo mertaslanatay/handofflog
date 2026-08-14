@@ -362,4 +362,6 @@ Cowork her önemli teknik veya ürün kararını aşağıdaki formatta eklemelid
 **Sınır (DEC-008 ile uyum):** AI motorun **yerine geçmez** — yalnızca motorun ürettiği kesin değişikliklerin anlatımıdır; ham diff kaynak doğruluk olarak kalır. Model'e sadece diff verisi gider (node isimleri + property özetleri; kullanıcı onayıyla metin içerikleri dahil).
 **Uygulama:** `shared/release.ts` `AiScreenSummary` + opsiyonel `aiSummary`; `change-grouping.ts` (ekran bazlı gruplama) + `ai-summary.ts` (API, best-effort, 30 sn timeout). `ANTHROPIC_API_KEY` yoksa **sessizce atlanır** (publish yine çalışır). Model `ANTHROPIC_MODEL` ile ezilebilir (varsayılan claude-3-5-haiku-latest). Publish formunda "AI özeti ekle" checkbox (varsayılan açık).
 **Sağlama (kullanıcı):** Vercel env'e `ANTHROPIC_API_KEY` ekle (opsiyonel `ANTHROPIC_MODEL`).
+
+**Ücretsiz fallback:** ANTHROPIC_API_KEY yoksa `rule-summary.ts` (kural tabanlı, API'siz, deterministik) devreye girer ve aynı `aiSummary` şeklinde okunur maddeler üretir. UI etiketi "Değişiklik özeti". Anahtar eklenince otomatik AI'a geçer.
 **Sonuç:** web tsc temiz; plugin 172 test yeşil. Runtime, anahtar + deploy sonrası doğrulanacak.

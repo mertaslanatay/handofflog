@@ -12,6 +12,7 @@ import { PrismaRepository } from "@/server/repository.prisma";
 import { computeScreenVisuals } from "@/server/visual-figma";
 import { groupChangesByScreen } from "@/server/change-grouping";
 import { generateAiSummary } from "@/server/ai-summary";
+import { ruleBasedSummary } from "@/server/rule-summary";
 import { uploadVisualScreens } from "@/server/blob";
 import { loadSnapshotFromFigmaExport, diffSnapshots, buildRelease } from "@core/index";
 import { assembleVisualScreens } from "@backend/visual";
@@ -153,8 +154,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (body.ai !== false) {
       try {
         const groups = groupChangesByScreen(beforeCanvas, afterCanvas, changeSet);
-        const summary = await generateAiSummary(groups);
-        if (summary) releaseToStore = { ...releaseToStore, aiSummary: summary };
+        const summary = (await generateAiSummary(groups)) ?? ruleBasedSummary(groups);
+        if (summary.length) releaseToStore = { ...releaseToStore, aiSummary: summary };
       } catch {
         // AI summary unavailable → publish without it.
       }
