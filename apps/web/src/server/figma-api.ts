@@ -61,3 +61,34 @@ export async function fetchPages(fileKey: string, token: string): Promise<PageIn
   const json = await figmaGet(filePath(fileKey, { depth: 1 }), token);
   return parsePagesResponse(json);
 }
+
+/** Render PNGs of nodes at a specific version. Returns nodeId → temporary URL. */
+export async function fetchImages(
+  fileKey: string,
+  ids: string[],
+  version: string | undefined,
+  token: string
+): Promise<Record<string, string | null>> {
+  if (ids.length === 0) return {};
+  const q = new URLSearchParams({ ids: ids.join(","), format: "png", scale: "2" });
+  if (version) q.set("version", version);
+  const json = (await figmaGet(`/v1/images/${encodeURIComponent(fileKey)}?${q.toString()}`, token)) as {
+    images?: Record<string, string | null>;
+  };
+  return json.images ?? {};
+}
+
+/** Fetch an image URL and return base64 (no data: prefix). Bounded by a timeout. */
+export async function imageUrlToBase64(url: string): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const ab = await res.arrayBuffer();
+    return Buffer.from(ab).toString("base64");
+  } catch {
+    return null;
+  }
+}

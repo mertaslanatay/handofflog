@@ -71,7 +71,8 @@ export default function VersionsPage() {
   const [pDesc, setPDesc] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number } | null>(null);
+  const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number; visualScreens?: number } | null>(null);
+  const [pVisual, setPVisual] = useState(true);
 
   async function loadFileMeta() {
     const key = fileKey.trim();
@@ -158,7 +159,7 @@ export default function VersionsPage() {
       const res = await fetch("/api/figma/publish-release", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined }),
+        body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined, visual: pVisual }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -166,7 +167,7 @@ export default function VersionsPage() {
         else setPublishError(data.detail || data.error || "Yayınlanamadı");
         return;
       }
-      setPublishResult({ id: data.id, name: data.name, version: data.version, changeCount: data.changeCount });
+      setPublishResult({ id: data.id, name: data.name, version: data.version, changeCount: data.changeCount, visualScreens: data.visualScreens });
       setShowPublish(false);
     } catch {
       setPublishError("İstek başarısız oldu.");
@@ -337,6 +338,10 @@ export default function VersionsPage() {
                     <span className="field-label">Açıklama (opsiyonel)</span>
                     <textarea className="input" rows={2} value={pDesc} onChange={(e) => setPDesc(e.target.value)} />
                   </label>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+                    <input type="checkbox" checked={pVisual} onChange={(e) => setPVisual(e.target.checked)} />
+                    Görsel diff ekle (değişen ekranların önce/sonra görüntüsü — biraz yavaş olabilir)
+                  </label>
                   <div className="toolbar">
                     <button className="btn btn-primary" onClick={doPublish} disabled={publishing}>
                       {publishing ? "Yayınlanıyor…" : "Yayınla"}
@@ -350,7 +355,7 @@ export default function VersionsPage() {
               ) : null}
               {publishResult ? (
                 <div className="notice" style={{ marginTop: 12, borderColor: "var(--green)" }}>
-                  ✅ Release yayınlandı: <strong>{publishResult.name}</strong> (v{publishResult.version}, {publishResult.changeCount} değişiklik).{" "}
+                  ✅ Release yayınlandı: <strong>{publishResult.name}</strong> (v{publishResult.version}, {publishResult.changeCount} değişiklik{publishResult.visualScreens ? `, ${publishResult.visualScreens} ekran görseli` : ""}).{" "}
                   <a href={`/releases/${publishResult.id}`}>Aç →</a>
                 </div>
               ) : null}
