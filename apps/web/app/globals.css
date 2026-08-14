@@ -30,7 +30,8 @@ code{font-family:var(--mono);font-size:.88em;background:var(--n20);padding:1px 5
 .topnav-inner{max-width:980px;margin:0 auto;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--text)}
 .brand:hover{text-decoration:none}
-.brand-mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--blue),var(--purple));display:inline-block}
+.brand-mark{width:26px;height:26px;border-radius:6px;display:block}
+.login-logo{width:200px;max-width:72%;margin:0 auto 12px;display:block}
 .nav{display:flex;gap:2px;align-items:center}
 .nav a{padding:6px 10px;border-radius:6px;color:var(--text-sub);font-weight:500}
 .nav a:hover{background:var(--n20);text-decoration:none}
