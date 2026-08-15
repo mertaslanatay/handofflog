@@ -85,7 +85,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { snapshotId: `v_${from}`, scopeId: pageId }
     );
     const afterSnap = loadSnapshotFromFigmaExport(afterCanvas, { snapshotId: `v_${to}`, scopeId: pageId });
-    const changeSet = diffSnapshots(beforeSnap, afterSnap, { positionNoise: "suppress-on-parent-resize" });
+    const changeSet = diffSnapshots(beforeSnap, afterSnap, { positionNoise: "suppress" });
 
     const total = changeSet.added.length + changeSet.modified.length + changeSet.removed.length;
     if (total === 0) return NextResponse.json({ error: "no_changes" }, { status: 409 });
@@ -155,13 +155,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     }
 
+    let summarySource = "none";
     if (body.ai !== false) {
       try {
         const groups = groupChangesByScreen(beforeCanvas, afterCanvas, changeSet);
-        const summary =
-          (await generateGeminiSummary(groups)) ??
-          (await generateAiSummary(groups)) ??
-          ruleBasedSummary(groups);
+        const gem = await generateGeminiSummary(groups);
+        const ant = gem ? null : await generateAiSummary(groups);
+        const summary = gem ?? ant ?? ruleBasedSummary(groups);
+        summarySource = gem ? "gemini" : ant ? "anthropic" : "rules";
         if (summary.length) releaseToStore = { ...releaseToStore, aiSummary: summary };
       } catch {
         // AI summary unavailable → publish without it.
@@ -182,6 +183,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       name,
       version: release.version,
       visualScreens: releaseToStore.visualDiff?.length ?? 0,
+      summarySource,
     });
   } catch (e) {
     const status = (e as { status?: number }).status;

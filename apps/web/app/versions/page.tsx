@@ -71,7 +71,7 @@ export default function VersionsPage() {
   const [pDesc, setPDesc] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number; visualScreens?: number } | null>(null);
+  const [publishResult, setPublishResult] = useState<{ id: string; name: string; version: string; changeCount: number; visualScreens?: number; source?: string } | null>(null);
   const [pVisual, setPVisual] = useState(false);
   const [pAi, setPAi] = useState(true);
 
@@ -180,7 +180,7 @@ export default function VersionsPage() {
         else setPublishError(data.detail || data.error || "Yayınlanamadı");
         return;
       }
-      setPublishResult({ id: data.id, name: data.name, version: data.version, changeCount: data.changeCount, visualScreens: data.visualScreens });
+      setPublishResult({ id: data.id, name: data.name, version: data.version, changeCount: data.changeCount, visualScreens: data.visualScreens, source: data.summarySource });
       setShowPublish(false);
     } catch {
       setPublishError("İstek başarısız oldu.");
@@ -372,7 +372,7 @@ export default function VersionsPage() {
               ) : null}
               {publishResult ? (
                 <div className="notice" style={{ marginTop: 12, borderColor: "var(--green)" }}>
-                  ✅ Release yayınlandı: <strong>{publishResult.name}</strong> (v{publishResult.version}, {publishResult.changeCount} değişiklik{publishResult.visualScreens ? `, ${publishResult.visualScreens} ekran görseli` : ""}).{" "}
+                  ✅ Release yayınlandı: <strong>{publishResult.name}</strong> (v{publishResult.version}, {publishResult.changeCount} değişiklik{publishResult.visualScreens ? `, ${publishResult.visualScreens} ekran görseli` : ""}). Özet: {publishResult.source === "gemini" ? "Gemini" : publishResult.source === "anthropic" ? "Claude" : publishResult.source === "rules" ? "kural tabanlı" : "yok"}.{" "}
                   <a href={`/releases/${publishResult.id}`}>Aç →</a>
                 </div>
               ) : null}
