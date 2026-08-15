@@ -57,6 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const status = (e as { status?: number }).status;
     if (status === 403) return NextResponse.json({ error: "figma_forbidden" }, { status: 428 });
     if (status === 404) return NextResponse.json({ error: "file_not_found" }, { status: 404 });
+    if (status === 429) return NextResponse.json({ error: "figma_rate_limited" }, { status: 429 });
     return NextResponse.json({ error: "figma_error", detail: (e as Error).message }, { status: 502 });
   }
 }

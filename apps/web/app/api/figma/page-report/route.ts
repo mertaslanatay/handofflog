@@ -34,15 +34,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!fileKey || !pageId) return NextResponse.json({ error: "missing_params" }, { status: 400 });
 
   try {
-    const versions = await fetchAllVersions(fileKey, token);
-    if (versions.length < 2) {
-      return NextResponse.json({ error: "need_two_versions", count: versions.length }, { status: 409 });
-    }
-    const to = body.to ?? versions[0]!.id;
+    let to = body.to;
     let from = body.from;
-    if (!from) {
-      const named = versions.slice(1).find((v) => v.label);
-      from = named?.id ?? versions[1]!.id;
+    if (!to || !from) {
+      const versions = await fetchAllVersions(fileKey, token);
+      if (versions.length < 2) {
+        return NextResponse.json({ error: "need_two_versions", count: versions.length }, { status: 409 });
+      }
+      to = to ?? versions[0]!.id;
+      if (!from) {
+        const named = versions.slice(1).find((v) => v.label);
+        from = named?.id ?? versions[1]!.id;
+      }
     }
 
     const [beforeCanvas, afterCanvas] = await Promise.all([
@@ -51,15 +54,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ]);
 
     const report = buildPageReport(beforeCanvas, afterCanvas);
-    const info = (id: string) => {
-      const v = versions.find((x) => x.id === id);
-      return v ? { id: v.id, created_at: v.created_at, label: v.label } : { id };
-    };
-    return NextResponse.json({ from: info(from), to: info(to), report });
+    return NextResponse.json({ from: { id: from }, to: { id: to }, report });
   } catch (e) {
     const status = (e as { status?: number }).status;
     if (status === 403) return NextResponse.json({ error: "figma_forbidden" }, { status: 428 });
     if (status === 404) return NextResponse.json({ error: "file_not_found" }, { status: 404 });
+    if (status === 429) return NextResponse.json({ error: "figma_rate_limited" }, { status: 429 });
     return NextResponse.json({ error: "figma_error", detail: (e as Error).message }, { status: 502 });
   }
 }

@@ -1,8 +1,7 @@
 /**
  * Figma REST calls for version history (DEC-034). Thin network layer over the
  * pure @core/figma-versions builders/parsers; the OAuth access token is injected
- * by the caller (read from the encrypted cookie). No document is traversed inside
- * Figma — this is what replaces the freeze-prone live scan (TD-004).
+ * by the caller. On HTTP 429 (rate limit) it waits briefly and retries once.
  */
 import {
   versionsPath,
@@ -23,7 +22,14 @@ interface FigmaHttpError extends Error {
 
 async function figmaGet(pathOrUrl: string, token: string): Promise<unknown> {
   const url = pathOrUrl.startsWith("http") ? pathOrUrl : FIGMA_API + pathOrUrl;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const headers = { Authorization: `Bearer ${token}` };
+  let res = await fetch(url, { headers });
+  if (res.status === 429) {
+    const ra = Number(res.headers.get("retry-after"));
+    const waitMs = (Number.isFinite(ra) && ra > 0 ? Math.min(ra, 2) : 1.5) * 1000;
+    await new Promise((r) => setTimeout(r, waitMs));
+    res = await fetch(url, { headers });
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     const err: FigmaHttpError = new Error(`figma_http_${res.status}: ${body.slice(0, 200)}`);

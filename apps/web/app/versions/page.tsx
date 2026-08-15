@@ -95,6 +95,10 @@ export default function VersionsPage() {
         setNeedConnect(true);
         return;
       }
+      if (vr.status === 429 || pr.status === 429) {
+        setError("Figma hız sınırına takıldı — ~1 dakika bekleyip tekrar dene.");
+        return;
+      }
       const vd = await vr.json();
       const pd = await pr.json();
       if (!vr.ok) {
@@ -136,6 +140,10 @@ export default function VersionsPage() {
         setNeedConnect(true);
         return;
       }
+      if (res.status === 429) {
+        setError("Figma hız sınırına takıldı — ~1 dakika bekleyip tekrar dene.");
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data.error === "need_two_versions") setError("Bu dosyada karşılaştırmak için en az 2 versiyon yok.");
@@ -162,6 +170,10 @@ export default function VersionsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ fileKey: key, pageId, from: fromV, to: toV, name: pName || undefined, type: pType || undefined, description: pDesc || undefined, visual: pVisual, ai: pAi }),
       });
+      if (res.status === 429) {
+        setPublishError("Figma hız sınırına takıldı — ~1 dakika bekleyip tekrar dene.");
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data.error === "no_changes") setPublishError("Yayınlanacak değişiklik yok.");
