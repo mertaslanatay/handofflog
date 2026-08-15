@@ -11,6 +11,7 @@ import { primaryContext } from "@/server/onboarding";
 import { PrismaRepository } from "@/server/repository.prisma";
 import { computeScreenVisuals } from "@/server/visual-figma";
 import { groupChangesByScreen } from "@/server/change-grouping";
+import { generateGeminiSummary } from "@/server/gemini-summary";
 import { generateAiSummary } from "@/server/ai-summary";
 import { ruleBasedSummary } from "@/server/rule-summary";
 import { uploadVisualScreens } from "@/server/blob";
@@ -154,7 +155,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (body.ai !== false) {
       try {
         const groups = groupChangesByScreen(beforeCanvas, afterCanvas, changeSet);
-        const summary = (await generateAiSummary(groups)) ?? ruleBasedSummary(groups);
+        const summary =
+          (await generateGeminiSummary(groups)) ??
+          (await generateAiSummary(groups)) ??
+          ruleBasedSummary(groups);
         if (summary.length) releaseToStore = { ...releaseToStore, aiSummary: summary };
       } catch {
         // AI summary unavailable → publish without it.
