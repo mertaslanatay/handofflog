@@ -11,9 +11,10 @@ export async function generateGeminiSummary(groups: ScreenChangeGroup[]): Promis
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SUMMARY_SYSTEM }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
